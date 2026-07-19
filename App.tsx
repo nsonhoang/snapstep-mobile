@@ -8,7 +8,7 @@ export default function App(): React.JSX.Element {
   return (
     <AuthProvider>
       <AlertProvider>
-        <StatusBar style="inverted" />
+        <StatusBar style="inverted"  />
         <RootNavigator />
       </AlertProvider>
     </AuthProvider>

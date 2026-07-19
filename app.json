@@ -20,6 +20,15 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "SnapStep sẽ sử dụng camera để chụp ảnh",
+          "microphonePermission": "SnapStep sẽ sử dụng microphone để quay video"
+        }
+      ]
+    ]
   }
 }

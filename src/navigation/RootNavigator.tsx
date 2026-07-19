@@ -7,6 +7,7 @@ import { LoginScreen } from '../screens/LoginScreen';
 
 import { HomeScreen } from '../screens/HomeScreen';
 import { PasswordScreen } from '../screens/PasswordScreen';
+import { StatusBar } from 'expo-status-bar';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -14,12 +15,19 @@ export const RootNavigator = (): React.JSX.Element => {
   const { isAuthenticated } = useAuth();
 
   return (
-    <NavigationContainer>
+   <> 
+   
+ 
+   <NavigationContainer>
       <Stack.Navigator
+    
         screenOptions={{
           headerShown: false,
           animation: 'fade_from_bottom',
+       
+       
         }}
+        
       >
         {isAuthenticated ? (
           // Private Route
@@ -32,6 +40,6 @@ export const RootNavigator = (): React.JSX.Element => {
           </>
         )}
       </Stack.Navigator>
-    </NavigationContainer>
+    </NavigationContainer></>
   );
 };
