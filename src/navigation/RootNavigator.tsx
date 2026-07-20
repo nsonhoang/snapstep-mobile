@@ -4,10 +4,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from './AuthContext';
 import { RootStackParamList } from './types';
 import { LoginScreen } from '../screens/LoginScreen';
-
 import { HomeScreen } from '../screens/HomeScreen';
 import { PasswordScreen } from '../screens/PasswordScreen';
-import { StatusBar } from 'expo-status-bar';
+import { PostDetailScreen } from '../screens/PostDetailScreen';
+import { MainTabNavigator } from './MainTabNavigator';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -15,23 +15,33 @@ export const RootNavigator = (): React.JSX.Element => {
   const { isAuthenticated } = useAuth();
 
   return (
-   <> 
-   
- 
-   <NavigationContainer>
+    <NavigationContainer>
       <Stack.Navigator
-    
         screenOptions={{
           headerShown: false,
           animation: 'fade_from_bottom',
-       
-       
         }}
-        
       >
         {isAuthenticated ? (
-          // Private Route
-          <Stack.Screen name="Home" component={HomeScreen} />
+          // Private Routes
+          <>
+            <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+            <Stack.Screen
+              name="Home"
+              component={HomeScreen}
+              options={{ animation: 'slide_from_bottom' }}
+            />
+            <Stack.Screen
+              name="PostDetail"
+              component={PostDetailScreen}
+              options={{
+                presentation: 'modal',
+                animation: 'slide_from_bottom',
+                gestureEnabled: true,
+                fullScreenGestureEnabled: true,
+              }}
+            />
+          </>
         ) : (
           // Public Routes
           <>
@@ -40,6 +50,6 @@ export const RootNavigator = (): React.JSX.Element => {
           </>
         )}
       </Stack.Navigator>
-    </NavigationContainer></>
+    </NavigationContainer>
   );
 };

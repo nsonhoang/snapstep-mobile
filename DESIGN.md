@@ -113,7 +113,7 @@ The emotional response should be one of "effortless discovery." By utilizing dee
 This design system utilizes a high-contrast dark palette to prioritize visual immersion. 
 
 - **Primary (#70C2B4):** A clean Mint/Neon Green used for calls-to-action, active states, and interactive markers.
-- **Surface & Background:** The core interface uses a deep charcoal (#0D0D0D) for the base layer, with slightly elevated surfaces using a lighter charcoal (#1A1A1A).
+- **Surface & Background:** The core screen background uses pure black (#000 / #000000), with elevated surfaces using dark charcoal (#1A1A1A).
 - **Glass Layers:** Semi-transparent overlays use a white-tinted blur (10-15% opacity) to create depth over photography.
 - **Functional Colors:** Error states should use a vibrant coral to contrast against the mint primary color.
 

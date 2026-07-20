@@ -11,7 +11,7 @@ import { CameraHeader } from '../components/CameraHeader';
 import { CameraToggles } from '../components/CameraToggles';
 import { CaptureBar } from '../components/CaptureBar';
 import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
-import { useCameraPermissions, CameraType, CameraView } from 'expo-camera';
+import { useCameraPermissions, CameraType, CameraView } from 'expo-camera'; // sẽ thay thế bằng thư viện react-native-vision-camera để cải tiếng
 
 export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element => {
 const [permission, requestPermission] = useCameraPermissions();
@@ -42,6 +42,7 @@ const cameraRef = useRef<CameraView>(null);
     setFacing(prevFacing => (prevFacing === 'back' ? 'front' : 'back'));
   };
 
+
   // bật flash
   const toggleFlash = () => {
     setFlashMode((current) => {
@@ -51,14 +52,7 @@ const cameraRef = useRef<CameraView>(null);
     });
   };
   const handleBackPress = (): void => {
-    showAlert({
-      title: 'Đăng xuất',
-      message: 'Bạn có muốn đăng xuất khỏi ứng dụng không?',
-      type: 'warning',
-      confirmText: 'Đăng xuất',
-      cancelText: 'Hủy',
-      onConfirm: logout,
-    });
+    navigation.navigate('MainTabs', { screen: 'Explore' });
   };
 
   const handleSettingsPress = (): void => {
@@ -89,7 +83,7 @@ const cameraRef = useRef<CameraView>(null);
     if (cameraRef.current) {
       try {
         const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.8,
+          quality: 0.7,
           base64: false,
         });
         if (photo?.uri) {
@@ -135,9 +129,7 @@ const cameraRef = useRef<CameraView>(null);
       </View>
     );
   }
-  const toggleCameraFacing = () => {
-    setFacing((current) => (current === 'back' ? 'front' : 'back'));
-  };
+
 
   return (
     <View style={styles.screenBackground}>
@@ -159,8 +151,9 @@ const cameraRef = useRef<CameraView>(null);
             style={{ flex: 1 }}
             facing={facing}
             flash={flashMode}
-            enableTorch={flashMode === 'on'}
+            // enableTorch={flashMode === 'on'}
             autofocus="on"
+            
           />
          </View>
 
