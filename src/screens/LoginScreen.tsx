@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,13 +7,18 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
-  Animated,
   ImageBackground,
   TextInput,
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { LoginScreenProps } from '../navigation/types';
 import { Colors } from '../constants/Colors';
 import { useAlert } from '../components/AlertProvider';
@@ -34,15 +39,20 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
   const [isPhoneMode, setIsPhoneMode] = useState<boolean>(false);
   const [inputValue, setInputValue] = useState<string>('');
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeValue = useSharedValue(0);
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
+    fadeValue.value = withTiming(1, {
       duration: 500,
-      useNativeDriver: true,
-    }).start();
-  }, []);
+      easing: Easing.out(Easing.ease),
+    });
+  }, [fadeValue]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: fadeValue.value,
+    };
+  });
 
   const handleContinue = (): void => {
     if (!inputValue.trim()) {
@@ -67,7 +77,7 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
         />
         <View style={[StyleSheet.absoluteFill, styles.overlay]} />
 
-        <Animated.View style={[styles.contentContainer, { opacity: fadeAnim }]}>
+        <Animated.View style={[styles.contentContainer, animatedStyle]}>
           <SafeAreaView style={styles.safeArea}>
             <KeyboardAvoidingView
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -126,7 +136,7 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
                     <Feather 
                       name="arrow-right" 
                       size={18} 
-                      color="#0D0D0D" 
+                      color={Colors.black} 
                       style={styles.buttonIcon} 
                     />
                   </View>
@@ -317,7 +327,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   primaryButtonText: {
-    color: '#0D0D0D',
+    color: Colors.black,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -341,7 +351,7 @@ const styles = StyleSheet.create({
   },
   googleButton: {
     height: 56,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 28,

@@ -1,32 +1,37 @@
-import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View, Animated } from 'react-native';
+import React, { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+import { Colors } from '../constants/Colors';
 
 interface ExploreSkeletonProps {
   viewMode: 'grid' | 'feed';
 }
 
 export const ExploreSkeleton = ({ viewMode }: ExploreSkeletonProps): React.JSX.Element => {
-  const pulseAnim = useRef(new Animated.Value(0.3)).current;
+  const opacity = useSharedValue(0.3);
 
   useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 0.8,
-          duration: 700,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 0.3,
-          duration: 700,
-          useNativeDriver: true,
-        }),
-      ])
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(0.8, { duration: 700 }),
+        withTiming(0.3, { duration: 700 })
+      ),
+      -1, // infinite loop
+      true // reverse on loop back
     );
-    animation.start();
+  }, [opacity]);
 
-    return () => animation.stop();
-  }, [pulseAnim]);
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: opacity.value,
+    };
+  });
 
   if (viewMode === 'feed') {
     // 1-Column Full HD Feed Skeleton
@@ -35,7 +40,7 @@ export const ExploreSkeleton = ({ viewMode }: ExploreSkeletonProps): React.JSX.E
         {[1, 2, 3].map((key) => (
           <Animated.View
             key={key}
-            style={[styles.feedSkeletonCard, { opacity: pulseAnim }]}
+            style={[styles.feedSkeletonCard, animatedStyle]}
           />
         ))}
       </View>
@@ -50,7 +55,7 @@ export const ExploreSkeleton = ({ viewMode }: ExploreSkeletonProps): React.JSX.E
           {[1, 2, 3].map((key) => (
             <Animated.View
               key={key}
-              style={[styles.gridSkeletonCard, { opacity: pulseAnim }]}
+              style={[styles.gridSkeletonCard, animatedStyle]}
             />
           ))}
         </View>
@@ -58,7 +63,7 @@ export const ExploreSkeleton = ({ viewMode }: ExploreSkeletonProps): React.JSX.E
           {[4, 5, 6].map((key) => (
             <Animated.View
               key={key}
-              style={[styles.gridSkeletonCard, { opacity: pulseAnim }]}
+              style={[styles.gridSkeletonCard, animatedStyle]}
             />
           ))}
         </View>
@@ -83,14 +88,14 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 3 / 4,
     borderRadius: 16,
-    backgroundColor: '#1E252B',
+    backgroundColor: Colors.surface,
     marginBottom: 12,
   },
   feedSkeletonCard: {
     width: '100%',
     aspectRatio: 3 / 4,
     borderRadius: 20,
-    backgroundColor: '#1E252B',
+    backgroundColor: Colors.surface,
     marginBottom: 16,
   },
 });

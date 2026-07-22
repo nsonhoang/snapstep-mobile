@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   chipUnselected: {
-    backgroundColor: '#1E252B',
+    backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },

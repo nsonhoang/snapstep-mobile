@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,13 +7,18 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
-  Animated,
   ImageBackground,
   TextInput,
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { useAuth } from '../navigation/AuthContext';
 import { PasswordScreenProps } from '../navigation/types';
 import { Colors } from '../constants/Colors';
@@ -37,15 +42,20 @@ export const PasswordScreen = ({ route, navigation }: PasswordScreenProps): Reac
   const [passwordValue, setPasswordValue] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeValue = useSharedValue(0);
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
+    fadeValue.value = withTiming(1, {
       duration: 500,
-      useNativeDriver: true,
-    }).start();
-  }, []);
+      easing: Easing.out(Easing.ease),
+    });
+  }, [fadeValue]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: fadeValue.value,
+    };
+  });
 
   const handleLogin = (): void => {
     if (!passwordValue.trim()) {
@@ -73,7 +83,7 @@ export const PasswordScreen = ({ route, navigation }: PasswordScreenProps): Reac
         />
         <View style={[StyleSheet.absoluteFill, styles.overlay]} />
 
-        <Animated.View style={[styles.contentContainer, { opacity: fadeAnim }]}>
+        <Animated.View style={[styles.contentContainer, animatedStyle]}>
           <SafeAreaView style={styles.safeArea}>
             <KeyboardAvoidingView
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -141,7 +151,7 @@ export const PasswordScreen = ({ route, navigation }: PasswordScreenProps): Reac
                       <Feather 
                         name="check" 
                         size={18} 
-                        color="#0D0D0D" 
+                        color={Colors.black} 
                         style={styles.buttonIcon} 
                       />
                     )}
@@ -306,7 +316,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   primaryButtonText: {
-    color: '#0D0D0D',
+    color: Colors.black,
     fontSize: 16,
     fontWeight: '700',
   },

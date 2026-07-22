@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,10 +11,16 @@ import {
   ScrollView,
   Keyboard,
   TouchableWithoutFeedback,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  runOnJS,
+  Easing,
+} from 'react-native-reanimated';
 import { Colors } from '../constants/Colors';
 import { PostDetailScreenProps } from '../navigation/types';
 import { useAlert } from '../components/AlertProvider';
@@ -28,12 +34,58 @@ const EMOJI_REACTIONS = [
   { id: 'angry', emoji: '😡' },
 ];
 
-interface FloatingEmojiItem {
+interface FloatingItem {
   id: string;
   emoji: string;
   leftOffset: number;
-  anim: Animated.Value;
 }
+
+const FloatingEmoji = ({
+  emoji,
+  leftOffset,
+  onComplete,
+}: {
+  emoji: string;
+  leftOffset: number;
+  onComplete: () => void;
+}): React.JSX.Element => {
+  const progress = useSharedValue(0);
+
+  React.useEffect(() => {
+    progress.value = withTiming(
+      1,
+      { duration: 1200, easing: Easing.out(Easing.cubic) },
+      (finished?: boolean) => {
+        if (finished) {
+          runOnJS(onComplete)();
+        }
+      }
+    );
+  }, [onComplete, progress]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const translateY = progress.value * -220;
+    const scale =
+      progress.value < 0.2
+        ? 0.3 + (progress.value / 0.2) * 1.2
+        : 1.5 - ((progress.value - 0.2) / 0.8) * 0.6;
+    const opacity =
+      progress.value < 0.15
+        ? progress.value / 0.15
+        : 1 - (progress.value - 0.15) / 0.85;
+
+    return {
+      transform: [{ translateX: leftOffset }, { translateY }, { scale }],
+      opacity,
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.floatingEmojiItem, animatedStyle]}>
+      <Text style={styles.floatingEmojiText}>{emoji}</Text>
+    </Animated.View>
+  );
+};
 
 export const PostDetailScreen = ({
   navigation,
@@ -43,35 +95,22 @@ export const PostDetailScreen = ({
   const { showAlert } = useAlert();
   const [commentText, setCommentText] = useState<string>('');
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
-  const [floatingEmojis, setFloatingEmojis] = useState<FloatingEmojiItem[]>([]);
+  const [floatingEmojis, setFloatingEmojis] = useState<FloatingItem[]>([]);
+
+  const removeFloatingEmoji = useCallback((id: string) => {
+    setFloatingEmojis((prev) => prev.filter((item) => item.id !== id));
+  }, []);
 
   const handleReactEmoji = (emojiId: string, emojiSymbol: string): void => {
     setSelectedEmoji(emojiId);
 
-    // Create a new floating emoji item
     const newItemId = `${Date.now()}_${Math.random()}`;
-    const animValue = new Animated.Value(0);
-    // Random horizontal position spread (-60 to +60)
     const leftOffset = (Math.random() - 0.5) * 120;
 
-    const newItem: FloatingEmojiItem = {
-      id: newItemId,
-      emoji: emojiSymbol,
-      leftOffset,
-      anim: animValue,
-    };
-
-    setFloatingEmojis((prev) => [...prev, newItem]);
-
-    // Start Instagram live heart float animation
-    Animated.timing(animValue, {
-      toValue: 1,
-      duration: 1200,
-      useNativeDriver: true,
-    }).start(() => {
-      // Remove after animation completes
-      setFloatingEmojis((prev) => prev.filter((item) => item.id !== newItemId));
-    });
+    setFloatingEmojis((prev) => [
+      ...prev,
+      { id: newItemId, emoji: emojiSymbol, leftOffset },
+    ]);
   };
 
   const handleSendComment = (): void => {
@@ -155,41 +194,16 @@ export const PostDetailScreen = ({
                   resizeMode="cover"
                 />
 
-                {/* Floating Emoji Animation Container (Instagram Heart Style) */}
+                {/* Floating Emoji Animation Container (Reanimated 60FPS) */}
                 <View style={styles.floatingContainer} pointerEvents="none">
-                  {floatingEmojis.map((item) => {
-                    const translateY = item.anim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0, -220],
-                    });
-                    const scale = item.anim.interpolate({
-                      inputRange: [0, 0.2, 0.8, 1],
-                      outputRange: [0.3, 1.5, 1.3, 0.9],
-                    });
-                    const opacity = item.anim.interpolate({
-                      inputRange: [0, 0.15, 0.75, 1],
-                      outputRange: [0, 1, 1, 0],
-                    });
-
-                    return (
-                      <Animated.View
-                        key={item.id}
-                        style={[
-                          styles.floatingEmojiItem,
-                          {
-                            transform: [
-                              { translateX: item.leftOffset },
-                              { translateY },
-                              { scale },
-                            ],
-                            opacity,
-                          },
-                        ]}
-                      >
-                        <Text style={styles.floatingEmojiText}>{item.emoji}</Text>
-                      </Animated.View>
-                    );
-                  })}
+                  {floatingEmojis.map((item) => (
+                    <FloatingEmoji
+                      key={item.id}
+                      emoji={item.emoji}
+                      leftOffset={item.leftOffset}
+                      onComplete={() => removeFloatingEmoji(item.id)}
+                    />
+                  ))}
                 </View>
 
                 {/* Time Badge (Top Right) */}
@@ -235,7 +249,7 @@ export const PostDetailScreen = ({
               </View>
             </ScrollView>
 
-            {/* 4. Seamless Floating Input Bar (Cao hơn hẳn bàn phím + thanh gợi ý) */}
+            {/* 4. Seamless Floating Input Bar */}
             <View style={styles.seamlessInputContainer}>
               <View style={styles.inputFloatingPill}>
                 <TextInput
@@ -267,7 +281,7 @@ export const PostDetailScreen = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.black,
+    backgroundColor: Colors.background,
   },
   keyboardContainer: {
     flex: 1,
@@ -298,7 +312,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#1E252B',
+    backgroundColor: Colors.surface,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -341,7 +355,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'rgba(112, 194, 180, 0.35)',
-    backgroundColor: '#1E252B',
+    backgroundColor: Colors.surface,
     position: 'relative',
   },
   cardImage: {
@@ -438,7 +452,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#1E252B',
+    backgroundColor: Colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -455,12 +469,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: Platform.OS === 'android' ? 14 : 10,
-    backgroundColor: 'transparent',
+    backgroundColor: Colors.transparent,
   },
   inputFloatingPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E252B',
+    backgroundColor: Colors.surface,
     borderRadius: 26,
     paddingHorizontal: 16,
     paddingVertical: 6,

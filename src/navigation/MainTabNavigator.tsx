@@ -1,7 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { MainTabParamList } from './types';
 import { Colors } from '../constants/Colors';
 import { ExploreScreen } from '../screens/ExploreScreen';
@@ -14,66 +21,37 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 // Dummy fallback for Snap tab
 const DummySnapScreen = () => null;
 
-// Pulsing & Glowing Snap Button Component
+// Pulsing & Glowing Snap Button Component (Reanimated 60FPS)
 const AnimatedSnapTabIcon = (): React.JSX.Element => {
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const glowOpacity = useRef(new Animated.Value(0.4)).current;
+  const pulse = useSharedValue(1);
 
-  useEffect(() => {
-    const pulseAnimation = Animated.loop(
-      Animated.parallel([
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.sequence([
-          Animated.timing(glowOpacity, {
-            toValue: 0.85,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(glowOpacity, {
-            toValue: 0.4,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ]),
-      ])
+  React.useEffect(() => {
+    pulse.value = withRepeat(
+      withTiming(1.1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
     );
-    pulseAnimation.start();
+  }, [pulse]);
 
-    return () => pulseAnimation.stop();
-  }, [pulseAnim, glowOpacity]);
+  const glowStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: pulse.value * 1.05 }],
+      opacity: 0.35 + (pulse.value - 1) * 3.5, // 0.35 -> 0.7
+    };
+  });
+
+  const buttonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: pulse.value }],
+    };
+  });
 
   return (
     <View style={styles.snapWrapper}>
       {/* Outer Glowing Pulsing Ring */}
-      <Animated.View
-        style={[
-          styles.glowRing,
-          {
-            transform: [{ scale: pulseAnim }],
-            opacity: glowOpacity,
-          },
-        ]}
-      />
+      <Animated.View style={[styles.glowRing, glowStyle]} />
       {/* Main Elevated Shutter Button */}
-      <Animated.View
-        style={[
-          styles.snapIconContainer,
-          {
-            transform: [{ scale: pulseAnim }],
-          },
-        ]}
-      >
+      <Animated.View style={[styles.snapIconContainer, buttonStyle]}>
         <Feather name="camera" size={24} color={Colors.black} />
       </Animated.View>
     </View>

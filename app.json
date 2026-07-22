@@ -16,7 +16,12 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.hoangshpy.SnapStep"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -28,7 +33,8 @@
           "cameraPermission": "SnapStep sẽ sử dụng camera để chụp ảnh",
           "microphonePermission": "SnapStep sẽ sử dụng microphone để quay video"
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

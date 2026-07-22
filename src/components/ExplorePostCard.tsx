@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 3 / 4,
     overflow: 'hidden',
-    backgroundColor: '#1E252B',
+    backgroundColor: Colors.surface,
     position: 'relative',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',

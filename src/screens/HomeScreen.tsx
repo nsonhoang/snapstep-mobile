@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Animated, Pressable, Text, Modal, Image } from 'react-native';
+import { StyleSheet, View, Pressable, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import { useAuth } from '../navigation/AuthContext';
 import { HomeScreenProps } from '../navigation/types';
 import { Colors } from '../constants/Colors';
@@ -11,12 +16,12 @@ import { CameraHeader } from '../components/CameraHeader';
 import { CameraToggles } from '../components/CameraToggles';
 import { CaptureBar } from '../components/CaptureBar';
 import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
-import { useCameraPermissions, CameraType, CameraView } from 'expo-camera'; // sẽ thay thế bằng thư viện react-native-vision-camera để cải tiếng
+import { useCameraPermissions, CameraType, CameraView } from 'expo-camera';
 
 export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element => {
-const [permission, requestPermission] = useCameraPermissions();
-const [facing, setFacing] = useState<CameraType>('back');
-const cameraRef = useRef<CameraView>(null);
+  const [permission, requestPermission] = useCameraPermissions();
+  const [facing, setFacing] = useState<CameraType>('back');
+  const cameraRef = useRef<CameraView>(null);
 
   const { logout } = useAuth();
   const { showAlert } = useAlert();
@@ -27,23 +32,24 @@ const cameraRef = useRef<CameraView>(null);
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | undefined>(undefined);
   const [isPreviewVisible, setIsPreviewVisible] = useState<boolean>(false);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeValue = useSharedValue(0);
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: true,
-    }).start();
-  }, []);
+    fadeValue.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
+  }, [fadeValue]);
 
-  // chuyển sang camera trước
+  const animatedContainerStyle = useAnimatedStyle(() => {
+    return {
+      opacity: fadeValue.value,
+    };
+  });
+
+  // Chuyển sang camera trước / sau
   const flipCamera = () => {
-    setFacing(prevFacing => (prevFacing === 'back' ? 'front' : 'back'));
+    setFacing((prevFacing) => (prevFacing === 'back' ? 'front' : 'back'));
   };
 
-
-  // bật flash
+  // Bật flash
   const toggleFlash = () => {
     setFlashMode((current) => {
       if (current === 'off') return 'on';
@@ -51,6 +57,7 @@ const cameraRef = useRef<CameraView>(null);
       return 'off';
     });
   };
+
   const handleBackPress = (): void => {
     navigation.navigate('MainTabs', { screen: 'Explore' });
   };
@@ -78,7 +85,7 @@ const cameraRef = useRef<CameraView>(null);
     });
   };
 
-  //chụp ảnh
+  // Chụp ảnh
   const handleShutterPress = async () => {
     if (cameraRef.current) {
       try {
@@ -112,8 +119,8 @@ const cameraRef = useRef<CameraView>(null);
   // Trạng thái 1: Đang khởi tạo hoặc chưa có kết quả xin quyền
   if (!permission) {
     return (
-      <View style={styles.container}>
-        <Text>Đang khởi tạo Camera...</Text>
+      <View style={styles.loadingContainer}>
+        <Text style={styles.infoText}>Đang khởi tạo Camera...</Text>
       </View>
     );
   }
@@ -121,21 +128,19 @@ const cameraRef = useRef<CameraView>(null);
   // Trạng thái 2: Người dùng chưa cấp quyền hoặc đã từ chối
   if (!permission.granted) {
     return (
-      <View style={styles.container}>
-        <Text>Chúng tôi cần quyền sử dụng Camera của bạn</Text>
-        <Pressable  onPress={requestPermission}>
-          <Text >Cấp Quyền</Text>
+      <View style={styles.loadingContainer}>
+        <Text style={styles.infoText}>Chúng tôi cần quyền sử dụng Camera của bạn</Text>
+        <Pressable style={styles.permissionBtn} onPress={requestPermission}>
+          <Text style={styles.permissionBtnText}>Cấp Quyền</Text>
         </Pressable>
       </View>
     );
   }
 
-
   return (
     <View style={styles.screenBackground}>
-      <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+      <Animated.View style={[styles.container, animatedContainerStyle]}>
         <SafeAreaView style={styles.safeArea}>
-          
           {/* 1. Header Navigation Component */}
           <CameraHeader
             selectedGroup={selectedGroup}
@@ -145,17 +150,15 @@ const cameraRef = useRef<CameraView>(null);
           />
 
           {/* 2. Camera Viewport Component */}
-         <View style={styles.previewContainer}>
-          <CameraView 
-            ref={cameraRef} 
-            style={{ flex: 1 }}
-            facing={facing}
-            flash={flashMode}
-            // enableTorch={flashMode === 'on'}
-            autofocus="on"
-            
-          />
-         </View>
+          <View style={styles.previewContainer}>
+            <CameraView
+              ref={cameraRef}
+              style={styles.cameraView}
+              facing={facing}
+              flash={flashMode}
+              autofocus="on"
+            />
+          </View>
 
           {/* 3. Camera Controls / Toggles Component */}
           <CameraToggles
@@ -182,7 +185,6 @@ const cameraRef = useRef<CameraView>(null);
             onThumbnailPress={handleThumbnailPress}
           />
         </SafeAreaView>
-   
       </Animated.View>
 
       {/* Full Photo Inspection & Post Preview Modal */}
@@ -219,6 +221,30 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+    paddingHorizontal: 20,
+  },
+  infoText: {
+    color: Colors.white,
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  permissionBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  permissionBtnText: {
+    color: Colors.black,
+    fontSize: 14,
+    fontWeight: '700',
+  },
   previewContainer: {
     width: '100%',
     aspectRatio: 3 / 4,
@@ -232,5 +258,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.45,
     shadowRadius: 15,
     elevation: 8,
+  },
+  cameraView: {
+    flex: 1,
   },
 });
