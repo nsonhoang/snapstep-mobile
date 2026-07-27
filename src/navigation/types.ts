@@ -5,7 +5,7 @@ import { ExplorePost } from '../components/ExplorePostCard';
 
 export type MainTabParamList = {
   Explore: undefined;
-  Conquest: undefined;
+  Map: undefined;
   Snap: undefined;
   Friends: undefined;
   Profile: undefined;
@@ -16,7 +16,8 @@ export type RootStackParamList = {
   Password: { identifier: string; isPhone: boolean };
   MainTabs: NavigatorScreenParams<MainTabParamList>;
   Home: undefined;
-  PostDetail: { post: ExplorePost };
+  PostDetail: { post: ExplorePost; posts?: ExplorePost[] };
+  Conquest: undefined;
 };
 
 export type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
@@ -33,8 +34,8 @@ export type ExploreScreenProps = CompositeScreenProps<
   NativeStackScreenProps<RootStackParamList>
 >;
 
-export type ConquestScreenProps = CompositeScreenProps<
-  BottomTabScreenProps<MainTabParamList, 'Conquest'>,
+export type MapScreenProps = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, 'Map'>,
   NativeStackScreenProps<RootStackParamList>
 >;
 

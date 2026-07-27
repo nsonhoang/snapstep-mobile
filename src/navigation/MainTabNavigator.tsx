@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet } from 'react-native';
+import { MainTabParamList } from './types';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -9,10 +10,9 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { MainTabParamList } from './types';
 import { Colors } from '../constants/Colors';
 import { ExploreScreen } from '../screens/ExploreScreen';
-import { ConquestScreen } from '../screens/ConquestScreen';
+import { MapScreen } from '../screens/MapScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 
@@ -82,12 +82,12 @@ export const MainTabNavigator = (): React.JSX.Element => {
         }}
       />
       <Tab.Screen
-        name="Conquest"
-        component={ConquestScreen}
+        name="Map"
+        component={MapScreen}
         options={{
-          title: 'Conquest',
+          title: 'Map',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="trophy-outline" size={size || 22} color={color} />
+            <Ionicons name="map-outline" size={size || 22} color={color} />
           ),
         }}
       />

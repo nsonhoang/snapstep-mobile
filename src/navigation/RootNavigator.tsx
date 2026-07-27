@@ -8,6 +8,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { PasswordScreen } from '../screens/PasswordScreen';
 import { PostDetailScreen } from '../screens/PostDetailScreen';
 import { MainTabNavigator } from './MainTabNavigator';
+import { ConquestScreen } from '../screens/ConquestScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -36,6 +37,16 @@ export const RootNavigator = (): React.JSX.Element => {
               component={PostDetailScreen}
               options={{
                 presentation: 'modal',
+                animation: 'slide_from_bottom',
+                gestureEnabled: true,
+                fullScreenGestureEnabled: true,
+              }}
+            />
+            <Stack.Screen
+              name="Conquest"
+              component={ConquestScreen}
+              options={{
+                
                 animation: 'slide_from_bottom',
                 gestureEnabled: true,
                 fullScreenGestureEnabled: true,

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -8,10 +8,10 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   Keyboard,
   TouchableWithoutFeedback,
 } from 'react-native';
+import { FlatList } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import Animated, {
@@ -24,6 +24,7 @@ import Animated, {
 import { Colors } from '../constants/Colors';
 import { PostDetailScreenProps } from '../navigation/types';
 import { useAlert } from '../components/AlertProvider';
+import { ExplorePost } from '../components/ExplorePostCard';
 
 const EMOJI_REACTIONS = [
   { id: 'heart', emoji: '❤️' },
@@ -87,13 +88,12 @@ const FloatingEmoji = ({
   );
 };
 
-export const PostDetailScreen = ({
-  navigation,
-  route,
-}: PostDetailScreenProps): React.JSX.Element => {
-  const { post } = route.params;
-  const { showAlert } = useAlert();
-  const [commentText, setCommentText] = useState<string>('');
+interface PostDetailCardProps {
+  post: ExplorePost;
+  containerHeight: number;
+}
+
+const PostDetailCard = ({ post, containerHeight }: PostDetailCardProps): React.JSX.Element => {
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingItem[]>([]);
 
@@ -113,12 +113,97 @@ export const PostDetailScreen = ({
     ]);
   };
 
+  return (
+    <View style={[styles.postCardContainer, { height: containerHeight }]}>
+      {/* 2. Main 3:4 Rounded Image Card (Stitch Compact Style) */}
+      <View style={styles.cardWrapper}>
+        <Image
+          source={{ uri: post.imageUrl }}
+          style={styles.cardImage}
+          resizeMode="cover"
+        />
+
+        {/* Floating Emoji Animation Container (Reanimated 60FPS) */}
+        <View style={styles.floatingContainer} pointerEvents="none">
+          {floatingEmojis.map((item) => (
+            <FloatingEmoji
+              key={item.id}
+              emoji={item.emoji}
+              leftOffset={item.leftOffset}
+              onComplete={() => removeFloatingEmoji(item.id)}
+            />
+          ))}
+        </View>
+
+        {/* Time Badge (Top Right) */}
+        <View style={styles.timeBadge}>
+          <Text style={styles.timeText}>{post.timeAgo}</Text>
+        </View>
+
+        {/* Bottom Overlay Container */}
+        <View style={styles.bottomOverlay}>
+          {/* Location Badge */}
+          <View style={styles.locationPill}>
+            <Ionicons name="location" size={14} color={Colors.primary} />
+            <Text style={styles.locationText}>{post.location}</Text>
+          </View>
+
+          {/* Caption Box */}
+          <View style={styles.captionBox}>
+            <Text style={styles.captionText}>
+              {post.title || '#solotravel, misty mornings in the mountains... 🏔️ ✨'}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* 3. Quick Emoji Reactions Bar */}
+      <View style={styles.reactionsContainer}>
+        {EMOJI_REACTIONS.map((item) => {
+          const isSelected = selectedEmoji === item.id;
+          return (
+            <Pressable
+              key={item.id}
+              onPress={() => handleReactEmoji(item.id, item.emoji)}
+              style={({ pressed }) => [
+                styles.emojiBtn,
+                isSelected && styles.emojiBtnSelected,
+                pressed && { transform: [{ scale: 1.25 }] },
+              ]}
+            >
+              <Text style={styles.emojiSymbol}>{item.emoji}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
+export const PostDetailScreen = ({
+  navigation,
+  route,
+}: PostDetailScreenProps): React.JSX.Element => {
+  const { post, posts: postsParam } = route.params;
+  const { showAlert } = useAlert();
+  const [commentText, setCommentText] = useState<string>('');
+  const [flatListHeight, setFlatListHeight] = useState<number>(0);
+
+  // Fallback to array if posts list is not provided
+  const posts = useMemo(() => postsParam || [post], [postsParam, post]);
+  const initialIndex = useMemo(() => posts.findIndex((p) => p.id === post.id), [posts, post]);
+
+  const [currentIndex, setCurrentIndex] = useState<number>(initialIndex !== -1 ? initialIndex : 0);
+  const activePost = posts[currentIndex] || post;
+
+  const flatListRef = useRef<FlatList<ExplorePost>>(null);
+
   const handleSendComment = (): void => {
     if (!commentText.trim()) return;
 
     showAlert({
       title: 'Đã gửi phản hồi',
-      message: `Bình luận của bạn: "${commentText}"`,
+      message: `Bình luận của bạn trên bài viết @${activePost.userName || 'user'}: "${commentText}"`,
       type: 'success',
     });
     setCommentText('');
@@ -149,17 +234,17 @@ export const PostDetailScreen = ({
               <Pressable
                 style={({ pressed }) => [styles.userPill, pressed && styles.btnPressed]}
               >
-                {post.userAvatar ? (
-                  <Image source={{ uri: post.userAvatar }} style={styles.pillAvatar} />
+                {activePost.userAvatar ? (
+                  <Image source={{ uri: activePost.userAvatar }} style={styles.pillAvatar} />
                 ) : (
                   <View style={styles.pillAvatarPlaceholder}>
                     <Text style={styles.pillAvatarInitial}>
-                      {(post.userName || 'User').charAt(0).toUpperCase()}
+                      {(activePost.userName || 'User').charAt(0).toUpperCase()}
                     </Text>
                   </View>
                 )}
                 <Text style={styles.pillText}>
-                  @{post.userName ? post.userName.replace(/\s+/g, '_') : 'Alex_W'}
+                  @{activePost.userName ? activePost.userName.replace(/\s+/g, '_') : 'Alex_W'}
                 </Text>
                 <Ionicons name="chevron-down" size={14} color={Colors.textMuted} />
               </Pressable>
@@ -180,74 +265,49 @@ export const PostDetailScreen = ({
               </Pressable>
             </View>
 
-            {/* Scrollable Content */}
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scrollContent}
-              keyboardShouldPersistTaps="handled"
+            {/* Vertical FlatList for swiping between posts */}
+            <View
+              style={styles.listWrapper}
+              onLayout={(e) => {
+                const { height } = e.nativeEvent.layout;
+                // Only lock height once on initial load to prevent layout jank when keyboard opens
+                if (height > 0 && flatListHeight === 0) {
+                  setFlatListHeight(height);
+                }
+              }}
             >
-              {/* 2. Main 3:4 Rounded Image Card (Stitch Compact Style) */}
-              <View style={styles.cardWrapper}>
-                <Image
-                  source={{ uri: post.imageUrl }}
-                  style={styles.cardImage}
-                  resizeMode="cover"
+              {flatListHeight > 0 && (
+                <FlatList
+                  ref={flatListRef}
+                  data={posts}
+                  keyExtractor={(item) => item.id}
+                  pagingEnabled
+                  showsVerticalScrollIndicator={false}
+                  initialScrollIndex={initialIndex !== -1 ? initialIndex : 0}
+                  getItemLayout={(_data, index) => ({
+                    length: flatListHeight,
+                    offset: flatListHeight * index,
+                    index,
+                  })}
+                  onScrollToIndexFailed={(info) => {
+                    const wait = new Promise((resolve) => setTimeout(resolve, 50));
+                    wait.then(() => {
+                      flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
+                    });
+                  }}
+                  onMomentumScrollEnd={(e) => {
+                    const offset = e.nativeEvent.contentOffset.y;
+                    const index = Math.round(offset / flatListHeight);
+                    if (index >= 0 && index < posts.length) {
+                      setCurrentIndex(index);
+                    }
+                  }}
+                  renderItem={({ item }) => (
+                    <PostDetailCard post={item} containerHeight={flatListHeight} />
+                  )}
                 />
-
-                {/* Floating Emoji Animation Container (Reanimated 60FPS) */}
-                <View style={styles.floatingContainer} pointerEvents="none">
-                  {floatingEmojis.map((item) => (
-                    <FloatingEmoji
-                      key={item.id}
-                      emoji={item.emoji}
-                      leftOffset={item.leftOffset}
-                      onComplete={() => removeFloatingEmoji(item.id)}
-                    />
-                  ))}
-                </View>
-
-                {/* Time Badge (Top Right) */}
-                <View style={styles.timeBadge}>
-                  <Text style={styles.timeText}>{post.timeAgo}</Text>
-                </View>
-
-                {/* Bottom Overlay Container */}
-                <View style={styles.bottomOverlay}>
-                  {/* Location Badge */}
-                  <View style={styles.locationPill}>
-                    <Ionicons name="location" size={14} color={Colors.primary} />
-                    <Text style={styles.locationText}>{post.location}</Text>
-                  </View>
-
-                  {/* Caption Box */}
-                  <View style={styles.captionBox}>
-                    <Text style={styles.captionText}>
-                      {post.title || '#solotravel, misty mornings in the mountains... 🏔️ ✨'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* 3. Quick Emoji Reactions Bar */}
-              <View style={styles.reactionsContainer}>
-                {EMOJI_REACTIONS.map((item) => {
-                  const isSelected = selectedEmoji === item.id;
-                  return (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => handleReactEmoji(item.id, item.emoji)}
-                      style={({ pressed }) => [
-                        styles.emojiBtn,
-                        isSelected && styles.emojiBtnSelected,
-                        pressed && { transform: [{ scale: 1.25 }] },
-                      ]}
-                    >
-                      <Text style={styles.emojiSymbol}>{item.emoji}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </ScrollView>
+              )}
+            </View>
 
             {/* 4. Seamless Floating Input Bar */}
             <View style={styles.seamlessInputContainer}>
@@ -342,10 +402,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-  scrollContent: {
+  listWrapper: {
+    flex: 1,
+  },
+  postCardContainer: {
+    width: '100%',
     paddingHorizontal: 20,
-    paddingTop: 6,
-    paddingBottom: 16,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   cardWrapper: {

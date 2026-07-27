@@ -98,7 +98,7 @@ export const ExploreScreen = ({ navigation }: ExploreScreenProps): React.JSX.Ele
   }, [searchQuery]);
 
   const handlePressPost = (post: ExplorePost): void => {
-    navigation.navigate('PostDetail', { post });
+    navigation.navigate('PostDetail', { post, posts: filteredPosts });
   };
 
   // Toggle View Mode with quick Skeleton feedback

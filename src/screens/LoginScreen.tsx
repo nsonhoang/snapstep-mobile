@@ -71,7 +71,7 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
         <ImageBackground
-          source={require('../assets/background.jpg')}
+          source={require('../../assets/background.jpg')}
           style={StyleSheet.absoluteFill}
           resizeMode="cover"
         />

@@ -34,7 +34,9 @@ All logic must strictly reside within the `src/` directory. You must place files
 - **Use `Pressable` Over `TouchableOpacity`:** Always prefer using React Native's modern `Pressable` component instead of `TouchableOpacity` (or other legacy touchable wrappers) for handling touch interactions. This provides better customization, native-feeling press states, and compatibility.
 - **Screen Background Color:** Must use pure black `#000` / `Colors.background` for screen backgrounds.
 - **Colors Constant First Policy:** ALWAYS check `src/constants/Colors.ts` for common color variables (`Colors.primary`, `Colors.background`, `Colors.black`, `Colors.white`, `Colors.surface`, `Colors.text`, `Colors.textMuted`, etc.) BEFORE hardcoding any hex color code ("mã màu").
+- **Screen Dimensions Layout Policy:** ALWAYS import and use screen dimensions (width, height) from `src/constants/Value.ts` (e.g., `Value.widthScreen`, `Value.heightScreen`) instead of calling `Dimensions.get('window')` or `useWindowDimensions` inline within stylesheets/components unless dynamic rotation/resize handling is explicitly required.
 - **Animation Library Rule:** Use `react-native-reanimated` library for smooth 60fps animations.
+- **Vietnamese Comments Policy:** ALWAYS write code comments in Vietnamese (`tiếng Việt`) to ensure clarity and easy understanding for the local development team.
 - For major structural differences or platform-exclusive native components (e.g., `ActionSheetIOS` vs `ToastAndroid`), separate the implementations using file extensions: `ComponentName.ios.tsx` and `ComponentName.android.tsx`.
 
 ## 5. Agent Workflow & Behaviors (CRITICAL RULES)
