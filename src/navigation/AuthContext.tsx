@@ -1,6 +1,12 @@
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 
+export interface User {
+  id: string;
+  
+}
+
 interface AuthContextType {
+  user: User;
   isAuthenticated: boolean;
   login: () => void;
   logout: () => void;
@@ -14,6 +20,7 @@ interface AuthProviderProps {
 
 export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [user, setUser] = useState<User>({id:"1"});
 
   const login = (): void => {
     setIsAuthenticated(true);
@@ -24,7 +31,7 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ user,isAuthenticated, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

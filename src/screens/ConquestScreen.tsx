@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Pressable } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { PROVIDER_DEFAULT, Marker, Polygon } from 'react-native-maps';
@@ -8,6 +8,7 @@ import { Value } from '../constants/Value';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { MAP_DARK_STYLE } from './MapScreen';
+import { GroupLeaderboard } from '../components/GroupLeaderboard';
 import vietnamGeoData from '../../assets/vn_provinces_simplified.json';
 
 type ConquestScreenProps = NativeStackScreenProps<RootStackParamList, 'Conquest'>;
@@ -34,7 +35,18 @@ interface ProvincePolygonData {
   strokeColor: string;
 }
 
+// Dữ liệu bảng xếp hạng nhóm (sau này sẽ lấy từ API)
+const LEADERBOARD_DATA = [
+  { rank: 1, username: '@Alex_W', score: 1450, emoji: '👨🏻‍💻', avatarColor: '#C2F0C2', badge: '👑' },
+  { rank: 2, username: '@Sam_J', score: 1320, emoji: '👦🏽', avatarColor: '#FFE0B2', badge: '🥈' },
+  { rank: 3, username: '@Mia_C', score: 1280, emoji: '👩🏻', avatarColor: '#F8BBD0', badge: '🥉' },
+  { rank: 4, username: '@You', score: 980, emoji: '👨🏻', avatarColor: '#BBDEFB', isCurrentUser: true, globalRank: '15th' },
+];
+
 export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.Element => {
+  // Trạng thái map đã render xong hay chưa (dùng để hiện loading overlay)
+  const [mapReady, setMapReady] = useState(false);
+
   const [ConqueredProvinces, setConqueredProvinces] = useState([
     "Hồ Chí Minh",
     "Hà Nội",
@@ -75,6 +87,17 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
       }));
     }) as ProvincePolygonData[];
   }, [ConqueredProvinces]);
+  const navigateToExploreScreenWithMe = () => {
+    navigation.navigate('MainTabs', {
+      screen: 'Explore',
+      params: {
+        filter: 'me',
+      },
+    });
+  };
+  const navigateTripScreen = () => {
+    console.log('Trip screen');
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -99,12 +122,13 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
       >
         {/* Bản đồ Việt Nam sử dụng MapView (Không cần dùng react-native-svg) */}
         <View style={styles.mapContainer}>
+          {/* MapView render ngầm phía dưới overlay — khi onMapReady kích hoạt, ẩn overlay */}
           <MapView
             provider={PROVIDER_DEFAULT}
             style={styles.map}
             customMapStyle={MAP_DARK_STYLE}
             userInterfaceStyle="dark"
-        
+            onMapReady={() => setMapReady(true)}
             initialRegion={{
               latitude: 16.2000, // Tọa độ trung tâm Việt Nam để hiển thị bao quát
               longitude: 108.2000,
@@ -124,24 +148,29 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
               />
             ))}
           </MapView>
-         
         </View>
 
         {/* Lưới thông tin thống kê 2x2 */}
         <View style={styles.statsGrid}>
           {/* Card 1: Số tỉnh thành đã qua */}
-          <View style={styles.statsCard}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.statsCard,
+              pressed && { opacity: 0.7 },
+            ]}
+            onPress={navigateTripScreen}
+            android_ripple={{ color: 'rgba(255,255,255,0.08)' }}
+          >
             <View style={styles.statsTextContainer}>
               <Text style={styles.statsLabel}>Provinces Visited</Text>
               <Text style={styles.statsValue}>
-                12 <Text style={styles.statsValueTotal}>/ 63</Text>
+                {ConqueredProvinces.length} <Text style={styles.statsValueTotal}>/ 63</Text>
               </Text>
             </View>
             <View style={styles.statsIconBox}>
               <Text style={styles.statsEmoji}>🗺️</Text>
             </View>
-          </View>
-
+          </Pressable>
           {/* Card 2: Thứ hạng khám phá */}
           <View style={styles.statsCard}>
             <View style={styles.statsTextContainer}>
@@ -153,8 +182,15 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
             </View>
           </View>
 
-          {/* Card 3: Tổng ảnh đã chụp */}
-          <View style={styles.statsCard}>
+          {/* Card 3: Tổng ảnh đã chụp — nhấn để xem danh sách ảnh */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.statsCard,
+              pressed && { opacity: 0.7 },
+            ]}
+            onPress={navigateToExploreScreenWithMe}
+            android_ripple={{ color: 'rgba(255,255,255,0.08)' }}
+          >
             <View style={styles.statsTextContainer}>
               <Text style={styles.statsLabel}>Total Photos</Text>
               <Text style={styles.statsValue}>248</Text>
@@ -162,7 +198,7 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
             <View style={styles.statsIconBox}>
               <Text style={styles.statsEmoji}>📸</Text>
             </View>
-          </View>
+          </Pressable>
 
           {/* Card 4: Chuỗi ngày liên tục */}
           <View style={styles.statsCard}>
@@ -176,75 +212,17 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
           </View>
         </View>
 
-        {/* Bảng xếp hạng nhóm (Group Leaderboard) */}
-        <View style={styles.leaderboardCard}>
-          <Text style={styles.leaderboardTitle}>Group Leaderboard</Text>
-
-          <View style={styles.leaderboardList}>
-            {/* Rank 1: @Alex_W */}
-            <View style={styles.leaderboardItem}>
-              <View style={styles.playerInfo}>
-                <Text style={styles.rankText}>1.</Text>
-                <View style={[styles.avatarContainer, { backgroundColor: '#C2F0C2' }]}>
-                  <Text style={styles.avatarEmoji}>👨🏻‍💻</Text>
-                </View>
-                <Text style={styles.playerName}>@Alex_W</Text>
-              </View>
-              <View style={styles.scoreContainer}>
-                <Text style={styles.scoreText}>1450 pts</Text>
-                <Text style={styles.badgeEmoji}>👑</Text>
-              </View>
-            </View>
-
-            {/* Rank 2: @Sam_J */}
-            <View style={styles.leaderboardItem}>
-              <View style={styles.playerInfo}>
-                <Text style={styles.rankText}>2.</Text>
-                <View style={[styles.avatarContainer, { backgroundColor: '#FFE0B2' }]}>
-                  <Text style={styles.avatarEmoji}>👦🏽</Text>
-                </View>
-                <Text style={styles.playerName}>@Sam_J</Text>
-              </View>
-              <View style={styles.scoreContainer}>
-                <Text style={styles.scoreText}>1320 pts</Text>
-                <Text style={styles.badgeEmoji}>🥈</Text>
-              </View>
-            </View>
-
-            {/* Rank 3: @Mia_C */}
-            <View style={styles.leaderboardItem}>
-              <View style={styles.playerInfo}>
-                <Text style={styles.rankText}>3.</Text>
-                <View style={[styles.avatarContainer, { backgroundColor: '#F8BBD0' }]}>
-                  <Text style={styles.avatarEmoji}>👩🏻</Text>
-                </View>
-                <Text style={styles.playerName}>@Mia_C</Text>
-              </View>
-              <View style={styles.scoreContainer}>
-                <Text style={styles.scoreText}>1280 pts</Text>
-                <Text style={styles.badgeEmoji}>🥉</Text>
-              </View>
-            </View>
-
-            {/* Rank 4: @You (Người dùng hiện tại - Highlighted) */}
-            <View style={[styles.leaderboardItem, styles.currentUserItem]}>
-              <View style={styles.playerInfo}>
-                <Text style={[styles.rankText, { color: Colors.primary }]}>4.</Text>
-                <View style={[styles.avatarContainer, styles.currentUserAvatar]}>
-                  <Text style={styles.avatarEmoji}>👨🏻</Text>
-                </View>
-                <Text style={[styles.playerName, { fontWeight: '700' }]}>
-                  @You <Text style={styles.playerRankSub}>(15th)</Text>
-                </Text>
-              </View>
-              <View style={styles.scoreContainer}>
-                <Text style={[styles.scoreText, { color: Colors.primary, fontWeight: '700' }]}>980 pts</Text>
-                <View style={styles.badgeEmojiPlaceholder} />
-              </View>
-            </View>
-          </View>
-        </View>
+        {/* Bảng xếp hạng nhóm */}
+        <GroupLeaderboard players={LEADERBOARD_DATA} />
       </ScrollView>
+
+      {/* Loading overlay phủ toàn màn hình — ẩn khi map đã sẵn sàng */}
+      {!mapReady && (
+        <View style={styles.fullScreenLoading}>
+          <ActivityIndicator size="small" color={Colors.primary} />
+          <Text style={styles.mapLoadingText}>Đang tải bản đồ...</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -370,97 +348,12 @@ const styles = StyleSheet.create({
   statsEmoji: {
     fontSize: 18,
   },
-  leaderboardCard: {
-    backgroundColor: '#1C1D21',
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  leaderboardTitle: {
-    color: Colors.white,
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 16,
-  },
-  leaderboardList: {
-    gap: 16,
-  },
-  leaderboardItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  playerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  rankText: {
-    color: Colors.textMuted,
-    fontSize: 14,
-    fontWeight: '500',
-    width: 16,
-  },
-  avatarContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#4B5563',
-  },
-  avatarEmoji: {
-    fontSize: 18,
-  },
-  playerName: {
-    color: Colors.white,
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  playerRankSub: {
-    color: '#6B7280',
-    fontWeight: '400',
-  },
-  scoreContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  scoreText: {
-    color: Colors.text,
-    fontSize: 15,
-  },
-  badgeEmoji: {
-    fontSize: 16,
-  },
-  badgeEmojiPlaceholder: {
-    width: 22,
-  },
-  currentUserItem: {
-    backgroundColor: 'rgba(112, 194, 180, 0.08)',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(112, 194, 180, 0.3)',
-  },
-  currentUserAvatar: {
-    backgroundColor: '#BBDEFB',
-    borderWidth: 2,
-    borderColor: Colors.primary,
-  },
-  mapLoadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(28, 29, 33, 0.75)',
+  fullScreenLoading: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: Colors.background, // Nền đen đặc che toàn bộ nội dung phía dưới
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 100, // Đảm bảo nằm trên tất cả
     gap: 8,
   },
   mapLoadingText: {

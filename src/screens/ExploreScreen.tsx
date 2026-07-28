@@ -13,16 +13,17 @@ import { ExploreSkeleton } from '../components/ExploreSkeleton';
 
 const MOCK_FILTER_CHIPS: FilterChipItem[] = [
   { id: 'all', label: 'Tất cả' },
-  { id: 'me', label: 'Me', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=250' },
-  { id: 'besties', label: 'Besties' },
-  { id: 'minh', label: 'Minh', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=250' },
-  { id: 'an', label: 'An', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=250' },
-  { id: 'lan', label: 'Lan' },
+  { id: '1', label: 'Me', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=250' },
+  { id: '2', label: 'Besties' },
+  { id: '3', label: 'Minh', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=250' },
+  { id: '4', label: 'An', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=250' },
+  { id: '5', label: 'Lan' },
 ];
 
 const MOCK_POSTS: ExplorePost[] = [
   {
     id: 'post-1',
+    userId:"1",
     imageUrl: 'https://images.unsplash.com/photo-1540611025311-01df3cef54b5?q=80&w=800',
     location: 'Sa Pa',
     timeAgo: '2h ago',
@@ -32,6 +33,7 @@ const MOCK_POSTS: ExplorePost[] = [
   },
   {
     id: 'post-2',
+    userId:"2",
     imageUrl: 'https://cdn-media.sforum.vn/storage/app/media/wp-content/uploads/2024/01/dia-diem-du-lich-o-ha-noi-thumb.jpg',
     location: 'Ha Noi',
     timeAgo: '1d ago',
@@ -41,6 +43,7 @@ const MOCK_POSTS: ExplorePost[] = [
   },
   {
     id: 'post-3',
+    userId:"3",
     imageUrl: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?q=80&w=800',
     location: 'Ha Noi',
     timeAgo: '1d ago',
@@ -50,6 +53,7 @@ const MOCK_POSTS: ExplorePost[] = [
   },
   {
     id: 'post-4',
+    userId:"3,",
     imageUrl: 'https://images.unsplash.com/photo-1528127269322-539801943592?q=80&w=800',
     location: 'Ha Noi',
     timeAgo: '1d ago',
@@ -58,6 +62,7 @@ const MOCK_POSTS: ExplorePost[] = [
   },
   {
     id: 'post-5',
+    userId:"2",
     imageUrl: 'https://vcdn1-dulich.vnecdn.net/2022/06/01/Hoi-An-VnExpress-5851-16488048-4863-2250-1654057244.jpg?w=0&h=0&q=100&dpr=2&fit=crop&s=k1SeSD7zn2e69TSWKfpoag',
     location: 'Hoi An',
     timeAgo: '30m ago',
@@ -67,6 +72,7 @@ const MOCK_POSTS: ExplorePost[] = [
   },
   {
     id: 'post-6',
+    userId:"1",
     imageUrl: 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?q=80&w=800',
     location: 'Da Lat',
     timeAgo: '4h ago',
@@ -92,10 +98,17 @@ export const ExploreScreen = ({ navigation }: ExploreScreenProps): React.JSX.Ele
 
   // Filter posts by search query
   const filteredPosts = useMemo(() => {
-    return MOCK_POSTS.filter((post) =>
-      post.location.toLowerCase().includes(searchQuery.toLowerCase())
+    if (selectedChipId === 'all') {
+      return MOCK_POSTS.filter((post) =>
+        post.location.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    else {return MOCK_POSTS.filter((post) =>
+      post.userId === selectedChipId
+      && post.location.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
+  }
+  }, [searchQuery, selectedChipId]);
 
   const handlePressPost = (post: ExplorePost): void => {
     navigation.navigate('PostDetail', { post, posts: filteredPosts });

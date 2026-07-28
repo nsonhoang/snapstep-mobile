@@ -5,6 +5,7 @@ import { Colors } from '../constants/Colors';
 
 export interface ExplorePost {
   id: string;
+  userId: string;
   imageUrl: string;
   location: string;
   timeAgo: string;

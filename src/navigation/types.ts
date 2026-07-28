@@ -4,7 +4,7 @@ import { CompositeScreenProps, NavigatorScreenParams } from '@react-navigation/n
 import { ExplorePost } from '../components/ExplorePostCard';
 
 export type MainTabParamList = {
-  Explore: undefined;
+  Explore: { filter?: string  };
   Map: undefined;
   Snap: undefined;
   Friends: undefined;
