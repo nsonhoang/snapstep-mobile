@@ -18,6 +18,8 @@ export type RootStackParamList = {
   Home: undefined;
   PostDetail: { post: ExplorePost; posts?: ExplorePost[] };
   Conquest: undefined;
+  SearchBuddies: undefined;
+  Notifications: undefined;
 };
 
 export type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;

@@ -25,33 +25,38 @@ const DummySnapScreen = () => null;
 const AnimatedSnapTabIcon = (): React.JSX.Element => {
   const pulse = useSharedValue(1);
 
-  React.useEffect(() => {
-    pulse.value = withRepeat(
-      withTiming(1.1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true
-    );
-  }, [pulse]);
+  // React.useEffect(() => {
+  //   pulse.value = withRepeat(
+  //     withTiming(1.1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+  //     -1,
+  //     true
+  //   );
+  // }, [pulse]);
 
-  const glowStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: pulse.value * 1.05 }],
-      opacity: 0.35 + (pulse.value - 1) * 3.5, // 0.35 -> 0.7
-    };
-  });
+  // const glowStyle = useAnimatedStyle(() => {
+  //   return {
+  //     transform: [{ scale: pulse.value * 1.05 }],
+  //     opacity: 0.35 + (pulse.value - 1) * 3.5, // 0.35 -> 0.7
+  //   };
+  // });
 
-  const buttonStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: pulse.value }],
-    };
-  });
+  // const buttonStyle = useAnimatedStyle(() => {
+  //   return {
+  //     transform: [{ scale: pulse.value }],
+  //   };
+  // });
 
   return (
     <View style={styles.snapWrapper}>
       {/* Outer Glowing Pulsing Ring */}
-      <Animated.View style={[styles.glowRing, glowStyle]} />
+      <Animated.View style={[
+        // styles.glowRing, 
+        // glowStyle
+        ]} />
       {/* Main Elevated Shutter Button */}
-      <Animated.View style={[styles.snapIconContainer, buttonStyle]}>
+      <Animated.View style={[styles.snapIconContainer, 
+        // buttonStyle
+        ]}>
         <Feather name="camera" size={24} color={Colors.black} />
       </Animated.View>
     </View>
@@ -93,7 +98,9 @@ export const MainTabNavigator = (): React.JSX.Element => {
       />
       <Tab.Screen
         name="Snap"
-        component={DummySnapScreen}
+        component={
+          DummySnapScreen
+        }
         options={{
           tabBarLabel: '',
           tabBarIcon: () => <AnimatedSnapTabIcon />,

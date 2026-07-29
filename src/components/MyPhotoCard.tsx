@@ -9,7 +9,7 @@ interface MyPhotoCardProps {
   containerHeight: number;
 }
 
-export const MyPhotoCard = ({ post, containerHeight }: MyPhotoCardProps): React.JSX.Element => {
+export const MyPhotoCard = React.memo(({ post, containerHeight }: MyPhotoCardProps): React.JSX.Element => {
   return (
     <View style={[styles.postCardContainer, { height: containerHeight }]}>
       {/* Main Photo Frame */}
@@ -77,7 +77,7 @@ export const MyPhotoCard = ({ post, containerHeight }: MyPhotoCardProps): React.
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   postCardContainer: {

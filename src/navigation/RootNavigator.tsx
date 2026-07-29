@@ -9,6 +9,10 @@ import { PasswordScreen } from '../screens/PasswordScreen';
 import { PostDetailScreen } from '../screens/PostDetailScreen';
 import { MainTabNavigator } from './MainTabNavigator';
 import { ConquestScreen } from '../screens/ConquestScreen';
+import { SearchBuddiesScreen } from '../screens/SearchBuddiesScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
+
+
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -51,6 +55,16 @@ export const RootNavigator = (): React.JSX.Element => {
                 gestureEnabled: true,
                 fullScreenGestureEnabled: true,
               }}
+            />
+            <Stack.Screen
+              name="SearchBuddies"
+              component={SearchBuddiesScreen}
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="Notifications"
+              component={NotificationsScreen}
+              options={{ animation: 'slide_from_right' }}
             />
           </>
         ) : (

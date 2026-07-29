@@ -75,6 +75,7 @@ export const MAP_DARK_STYLE = [
 const MAP_POSTS: (ExplorePost & { latitude: number; longitude: number })[] = [
   {
     id: 'post-1',
+    userId: '13',
     imageUrl: 'https://images.unsplash.com/photo-1540611025311-01df3cef54b5?q=80&w=800',
     location: 'Sa Pa',
     timeAgo: '2h ago',
@@ -86,6 +87,7 @@ const MAP_POSTS: (ExplorePost & { latitude: number; longitude: number })[] = [
   },
   {
     id: 'post-2',
+    userId: '22',
     imageUrl: 'https://cdn-media.sforum.vn/storage/app/media/wp-content/uploads/2024/01/dia-diem-du-lich-o-ha-noi-thumb.jpg',
     location: 'Ha Noi',
     timeAgo: '1d ago',
@@ -97,6 +99,7 @@ const MAP_POSTS: (ExplorePost & { latitude: number; longitude: number })[] = [
   },
   {
     id: 'post-5',
+    userId: '11',
     imageUrl: 'https://vcdn1-dulich.vnecdn.net/2022/06/01/Hoi-An-VnExpress-5851-16488048-4863-2250-1654057244.jpg?w=0&h=0&q=100&dpr=2&fit=crop&s=k1SeSD7zn2e69TSWKfpoag',
     location: 'Hoi An',
     timeAgo: '30m ago',
@@ -108,6 +111,7 @@ const MAP_POSTS: (ExplorePost & { latitude: number; longitude: number })[] = [
   },
   {
     id: 'post-6',
+    userId: '22',
     imageUrl: 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?q=80&w=800',
     location: 'Da Lat',
     timeAgo: '4h ago',

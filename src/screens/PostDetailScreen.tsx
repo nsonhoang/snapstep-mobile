@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -35,6 +35,8 @@ export const PostDetailScreen = ({
 
   const [currentIndex, setCurrentIndex] = useState<number>(initialIndex !== -1 ? initialIndex : 0);
   const activePost = posts[currentIndex] || post;
+
+  // const renderItem =useCallback(, [])
 
   const flatListRef = useRef<FlatList<ExplorePost>>(null);
 
@@ -84,6 +86,7 @@ export const PostDetailScreen = ({
                 keyExtractor={(item) => item.id}
                 pagingEnabled
                 showsVerticalScrollIndicator={false}
+                initialNumToRender={10}
                 initialScrollIndex={initialIndex !== -1 ? initialIndex : 0}
                 getItemLayout={(_data, index) => ({
                   length: flatListHeight,
@@ -103,13 +106,19 @@ export const PostDetailScreen = ({
                     setCurrentIndex(index);
                   }
                 }}
-                renderItem={({ item }) =>
-                  user.id === item.userId ? (
-                    <MyPhotoCard post={item} containerHeight={flatListHeight} />
-                  ) : (
-                    <FriendPhotoCard post={item} containerHeight={flatListHeight} />
+                renderItem={
+                 ({ item }: { item: ExplorePost }) => {
+                  return (
+                    user.id === item.userId ? (
+                      <MyPhotoCard post={item} containerHeight={flatListHeight} />
+                    ) : (
+                      <FriendPhotoCard post={item} containerHeight={flatListHeight} />
+                    )
                   )
-                }
+                
+  }
+              }
+
               />
             )}
           </View>
