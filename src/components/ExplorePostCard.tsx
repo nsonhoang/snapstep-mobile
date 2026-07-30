@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, View, Text, Image, Pressable } from 'react-native';
+import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 
@@ -37,16 +38,17 @@ export const ExplorePostCard = ({
     >
       {/* Background Image - Strict 3:4 Cover */}
       <Image
-        source={{ uri: post.imageUrl }}
+        source={post.imageUrl}
         style={styles.image}
-        resizeMode="cover"
+        contentFit="cover"
+        transition={300}
       />
 
       {/* Top Left User Author Badge */}
       {post.userName && (
         <View style={[styles.userBadge, isFeedMode && styles.feedUserBadge]}>
           {post.userAvatar ? (
-            <Image source={{ uri: post.userAvatar }} style={styles.userAvatar} />
+            <Image source={post.userAvatar} style={styles.userAvatar} contentFit="cover" transition={300} />
           ) : (
             <View style={styles.userAvatarPlaceholder}>
               <Text style={styles.userAvatarInitial}>

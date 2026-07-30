@@ -103,6 +103,8 @@ export const FriendsScreen = (): React.JSX.Element => {
         </Pressable>
         <Pressable style={styles.newFriends} onPress={navigateToNewFriends}>
           <Ionicons name="person-add-outline" size={24} color={Colors.primary} />
+          {1 ===1 ? <View style={styles.badge} /> : null}
+
         </Pressable>
         </View>
       </View>
@@ -174,8 +176,8 @@ const styles = StyleSheet.create({
   },
   badge:{
     position: 'absolute',
-    top: 10,
-    right: 13,
+    top: 8,
+    right: 10,
     width: 8,
     height: 8,
     borderRadius: 4,

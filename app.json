@@ -34,7 +34,8 @@
           "microphonePermission": "SnapStep sẽ sử dụng microphone để quay video"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-image"
     ]
   }
 }

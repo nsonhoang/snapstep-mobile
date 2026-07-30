@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, FlatList, Pressable, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import { NotificationSkeleton } from '../components/NotificationSkeleton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
 
@@ -49,6 +50,15 @@ const MOCK_NOTIFICATIONS: NotificationItem[] = [
 ];
 
 export const NotificationsScreen = ({ navigation }: Props): React.JSX.Element => {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
   const renderItem = ({ item }: { item: NotificationItem }) => (
     <Pressable style={[styles.notificationItem, !item.isRead && styles.unreadItem]}>
       <Image source={{ uri: item.avatar }} style={styles.avatar} />
@@ -75,12 +85,20 @@ export const NotificationsScreen = ({ navigation }: Props): React.JSX.Element =>
         <View style={styles.spacer} />
       </View>
 
-      <FlatList
-        data={MOCK_NOTIFICATIONS}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-      />
+      {isLoading ? (
+        <View style={styles.listContent}>
+          {[1, 2, 3, 4, 5].map((key) => (
+            <NotificationSkeleton key={key} />
+          ))}
+        </View>
+      ) : (
+        <FlatList
+          data={MOCK_NOTIFICATIONS}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
     </SafeAreaView>
   );
 };

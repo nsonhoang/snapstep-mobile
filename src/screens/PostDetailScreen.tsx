@@ -3,7 +3,6 @@ import {
   StyleSheet,
   View,
   KeyboardAvoidingView,
-  Platform,
   Keyboard,
   TouchableWithoutFeedback,
 } from 'react-native';
@@ -29,18 +28,17 @@ export const PostDetailScreen = ({
   const [commentText, setCommentText] = useState<string>('');
   const [flatListHeight, setFlatListHeight] = useState<number>(0);
 
-  // Fallback to array if posts list is not provided
+  // Sử dụng mảng fallback nếu không có danh sách bài viết
   const posts = useMemo(() => postsParam || [post], [postsParam, post]);
   const initialIndex = useMemo(() => posts.findIndex((p) => p.id === post.id), [posts, post]);
 
   const [currentIndex, setCurrentIndex] = useState<number>(initialIndex !== -1 ? initialIndex : 0);
   const activePost = posts[currentIndex] || post;
 
-  // const renderItem =useCallback(, [])
-
   const flatListRef = useRef<FlatList<ExplorePost>>(null);
 
-  const handleSendComment = (): void => {
+  // Tối ưu các callback với useCallback để tránh re-render không cần thiết
+  const handleSendComment = useCallback((): void => {
     if (!commentText.trim()) return;
 
     showAlert({
@@ -50,15 +48,51 @@ export const PostDetailScreen = ({
     });
     setCommentText('');
     Keyboard.dismiss();
-  };
+  }, [commentText, activePost, showAlert]);
 
-  const handleSettings = (): void => {
+  const handleSettings = useCallback((): void => {
     showAlert({
       title: 'Tùy chọn bài viết',
       message: 'Báo cáo hoặc ẩn bài viết này.',
       type: 'info',
     });
-  };
+  }, [showAlert]);
+
+  const handleLayout = useCallback((e: any) => {
+    const { height } = e.nativeEvent.layout;
+    if (height > 0 && flatListHeight === 0) {
+      setFlatListHeight(height);
+    }
+  }, [flatListHeight]);
+
+  const getItemLayout = useCallback((_data: any, index: number) => ({
+    length: flatListHeight,
+    offset: flatListHeight * index,
+    index,
+  }), [flatListHeight]);
+
+  const onScrollToIndexFailed = useCallback((info: any) => {
+    const wait = new Promise((resolve) => setTimeout(resolve, 50));
+    wait.then(() => {
+      flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
+    });
+  }, []);
+
+  const onMomentumScrollEnd = useCallback((e: any) => {
+    const offset = e.nativeEvent.contentOffset.y;
+    const index = Math.round(offset / flatListHeight);
+    if (index >= 0 && index < posts.length) {
+      setCurrentIndex(index);
+    }
+  }, [flatListHeight, posts.length]);
+
+  const renderItem = useCallback(({ item }: { item: ExplorePost }) => {
+    return user.id === item.userId ? (
+      <MyPhotoCard post={item} containerHeight={flatListHeight} />
+    ) : (
+      <FriendPhotoCard post={item} containerHeight={flatListHeight} />
+    );
+  }, [user.id, flatListHeight]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
@@ -70,15 +104,7 @@ export const PostDetailScreen = ({
             onSettings={handleSettings}
           />
 
-          <View
-            style={styles.listWrapper}
-            onLayout={(e) => {
-              const { height } = e.nativeEvent.layout;
-              if (height > 0 && flatListHeight === 0) {
-                setFlatListHeight(height);
-              }
-            }}
-          >
+          <View style={styles.listWrapper} onLayout={handleLayout}>
             {flatListHeight > 0 && (
               <FlatList
                 ref={flatListRef}
@@ -88,37 +114,11 @@ export const PostDetailScreen = ({
                 showsVerticalScrollIndicator={false}
                 initialNumToRender={10}
                 initialScrollIndex={initialIndex !== -1 ? initialIndex : 0}
-                getItemLayout={(_data, index) => ({
-                  length: flatListHeight,
-                  offset: flatListHeight * index,
-                  index,
-                })}
-                onScrollToIndexFailed={(info) => {
-                  const wait = new Promise((resolve) => setTimeout(resolve, 50));
-                  wait.then(() => {
-                    flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
-                  });
-                }}
-                onMomentumScrollEnd={(e) => {
-                  const offset = e.nativeEvent.contentOffset.y;
-                  const index = Math.round(offset / flatListHeight);
-                  if (index >= 0 && index < posts.length) {
-                    setCurrentIndex(index);
-                  }
-                }}
-                renderItem={
-                 ({ item }: { item: ExplorePost }) => {
-                  return (
-                    user.id === item.userId ? (
-                      <MyPhotoCard post={item} containerHeight={flatListHeight} />
-                    ) : (
-                      <FriendPhotoCard post={item} containerHeight={flatListHeight} />
-                    )
-                  )
-                
-  }
-              }
-
+                getItemLayout={getItemLayout}
+                onScrollToIndexFailed={onScrollToIndexFailed}
+                onMomentumScrollEnd={onMomentumScrollEnd}
+                renderItem={renderItem}
+                contentInsetAdjustmentBehavior="automatic"
               />
             )}
           </View>
@@ -128,7 +128,7 @@ export const PostDetailScreen = ({
       {/* Floating Keyboard Avoiding Container */}
       <KeyboardAvoidingView
         style={styles.floatingKeyboardContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}
         pointerEvents="box-none"
       >
         <CommentInputBar

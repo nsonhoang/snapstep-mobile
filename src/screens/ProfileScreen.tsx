@@ -1,26 +1,38 @@
 import React from 'react';
-import { StyleSheet, View, Text, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { StyleSheet, ScrollView, View } from 'react-native';
 import { Colors } from '../constants/Colors';
 import { useAuth } from '../navigation/AuthContext';
+import { ProfileHeader } from '../components/ProfileHeader';
+import { ProfileStats } from '../components/ProfileStats';
+import { MilestoneList } from '../components/MilestoneList';
+import { ProfileTabs } from '../components/ProfileTabs';
+import { ProfileOptionList } from '../components/ProfileOptionList';
 
 export const ProfileScreen = (): React.JSX.Element => {
   const { logout } = useAuth();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Ionicons name="person-outline" size={72} color={Colors.primary} />
-        <Text style={styles.title}>Profile</Text>
-        <Text style={styles.subtitle}>Trang cá nhân & Cài đặt tài khoản</Text>
+    <View style={styles.container}>
+      {/* 
+        Sử dụng ScrollView với contentInsetAdjustmentBehavior="automatic" 
+        thay vì SafeAreaView theo đúng chuẩn expo-native-ui. 
+      */}
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={styles.scrollContent}
+        contentInsetAdjustmentBehavior="automatic"
+      >
+        <ProfileHeader />
+        
+        <ProfileStats />
+        
+        <MilestoneList />
+        
+        <ProfileTabs />
 
-        <Pressable onPress={logout} style={styles.logoutButton}>
-          <Feather name="log-out" size={18} color={Colors.white} />
-          <Text style={styles.logoutText}>Đăng xuất</Text>
-        </Pressable>
-      </View>
-    </SafeAreaView>
+        <ProfileOptionList onLogout={logout} />
+      </ScrollView>
+    </View>
   );
 };
 
@@ -29,38 +41,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 24,
-  },
-  title: {
-    color: Colors.white,
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  subtitle: {
-    color: Colors.textMuted,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255, 180, 171, 0.15)',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 24,
-    marginTop: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 180, 171, 0.35)',
-  },
-  logoutText: {
-    color: Colors.error,
-    fontSize: 15,
-    fontWeight: '600',
+  scrollContent: {
+    paddingBottom: 40,
   },
 });
