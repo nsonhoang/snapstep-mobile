@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, Pressable, Modal, FlatList } from 'react-native
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { useAlert } from './AlertProvider';
+import { CreateTripModal } from './CreateTripModal';
 
 export interface LocationJourneySelectorProps {
   selectedJourney?: string;
@@ -23,7 +24,8 @@ export const LocationJourneySelector = ({
   const [currentJourney, setCurrentJourney] = useState<string>(selectedJourney);
   const [journeys, setJourneys] = useState<string[]>(DEFAULT_JOURNEYS);
   const [isMenuVisible, setIsMenuVisible] = useState<boolean>(false);
-  const { showAlert } = useAlert();
+  const [showCreateTripModal,setShowCreateTripModal] = useState<boolean>(false);
+ 
 
   const handleSelect = (journey: string) => {
     setCurrentJourney(journey);
@@ -32,12 +34,8 @@ export const LocationJourneySelector = ({
   };
 
   const handleAddNewJourney = () => {
-    setIsMenuVisible(false);
-    showAlert({
-      title: 'Thêm hành trình mới',
-      message: 'Tính năng tự định vị GPS & Thêm điểm hành trình sẽ được mở rộng ở bước tiếp theo.',
-      type: 'info',
-    });
+    // setIsMenuVisible(false);
+    setShowCreateTripModal(true);
   };
 
   return (
@@ -126,6 +124,10 @@ export const LocationJourneySelector = ({
           </View>
         </Pressable>
       </Modal>
+      <CreateTripModal
+        visible={showCreateTripModal}
+        onClose={() => setShowCreateTripModal(false)}
+      />
     </>
   );
 };

@@ -2,13 +2,18 @@ import React from 'react';
 import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../constants/Colors';
+import { RootStackParamList } from '../navigation/types';
 
 interface ProfileHeaderProps {
   onSettingsPress?: () => void;
 }
 
 export const ProfileHeader = ({ onSettingsPress }: ProfileHeaderProps): React.JSX.Element => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
   return (
     <View style={styles.container}>
       {/* Nút cài đặt góc trên cùng */}
@@ -31,6 +36,14 @@ export const ProfileHeader = ({ onSettingsPress }: ProfileHeaderProps): React.JS
         </View>
         <Text style={styles.username}>@traveler_viet</Text>
         <Text style={styles.bio}>Exploring the hidden gems of Vietnam 🇻🇳</Text>
+        
+        {/* Nút Chỉnh sửa hồ sơ */}
+        <Pressable 
+          style={styles.editProfileBtn} 
+          onPress={() => navigation.navigate('EditProfile')}
+        >
+          <Text style={styles.editProfileText}>Chỉnh sửa hồ sơ</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -85,6 +98,18 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 14,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  editProfileBtn: {
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  editProfileText: {
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

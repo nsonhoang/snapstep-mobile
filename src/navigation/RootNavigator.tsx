@@ -11,7 +11,11 @@ import { MainTabNavigator } from './MainTabNavigator';
 import { ConquestScreen } from '../screens/ConquestScreen';
 import { SearchBuddiesScreen } from '../screens/SearchBuddiesScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
-
+import { SavedTripScreen } from '../screens/SavedTripScreen';
+import { AllSavedTripsScreen } from '../screens/AllSavedTripsScreen';
+import { EditProfileScreen } from '../screens/EditProfileScreen';
+import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
+import { HelpAndSupportScreen } from '../screens/HelpAndSupportScreen';
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -64,6 +68,31 @@ export const RootNavigator = (): React.JSX.Element => {
             <Stack.Screen
               name="Notifications"
               component={NotificationsScreen}
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="SavedTrip"
+              component={SavedTripScreen}
+              options={{ animation: 'slide_from_bottom' }}
+            />
+            <Stack.Screen
+              name="AllSavedTrips"
+              component={AllSavedTripsScreen}
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="EditProfile"
+              component={EditProfileScreen}
+              options={{ animation: 'slide_from_bottom' }}
+            />
+            <Stack.Screen
+              name="ChangePassword"
+              component={ChangePasswordScreen}
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="HelpAndSupport"
+              component={HelpAndSupportScreen}
               options={{ animation: 'slide_from_right' }}
             />
           </>

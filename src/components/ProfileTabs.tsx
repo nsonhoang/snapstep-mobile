@@ -2,8 +2,12 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Colors } from '../constants/Colors';
 import { Value } from '../constants/Value';
+import { RootStackParamList } from '../navigation/types';
+import { SavedTripCard, SavedTripInfo } from './SavedTripCard';
 
 interface Snap {
   id: string;
@@ -16,17 +20,15 @@ interface SavedRoute {
   location: string;
   image: string;
 }
-
 const MOCK_SNAPS: Snap[] = [
   { id: '1', image: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?q=80&w=300' },
   { id: '2', image: 'https://images.unsplash.com/photo-1552308995-2baac1ad5490?q=80&w=300' },
   { id: '3', image: 'https://images.unsplash.com/photo-1528127269322-539801943592?q=80&w=300' },
   { id: '4', image: 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?q=80&w=300' },
-  { id: '5', image: 'https://images.unsplash.com/photo-1621217036665-225302bfb8d5?q=80&w=300' },
   { id: '6', image: 'https://images.unsplash.com/photo-1579482596426-ed87654bf3ee?q=80&w=300' },
 ];
 
-const MOCK_ROUTES: SavedRoute[] = [
+const MOCK_ROUTES: SavedTripInfo[] = [
   {
     id: '1',
     title: 'Hai Van Pass Loop',
@@ -35,7 +37,7 @@ const MOCK_ROUTES: SavedRoute[] = [
   },
   {
     id: '2',
-    title: 'Hoi An Heritage Walk',
+    title: 'Hoi An Heritage Walk âfafadfsdgsdgầfaskfndlkfnadkfanfkasnf]oaksnfaksf',
     location: 'Quang Nam, VN',
     image: 'https://images.unsplash.com/photo-1552308995-2baac1ad5490?q=80&w=300',
   },
@@ -43,6 +45,18 @@ const MOCK_ROUTES: SavedRoute[] = [
 
 export const ProfileTabs = (): React.JSX.Element => {
   const [activeTab, setActiveTab] = useState<'snaps' | 'routes'>('snaps');
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  const navigateToExpoloreMe = () =>{
+     console.log("Xem thêm...");
+  }
+  const navigateToSavedTrip = () =>{
+     navigation.navigate('AllSavedTrips');
+  }
+
+ 
+
+
 
   return (
     <View style={styles.container}>
@@ -69,24 +83,38 @@ export const ProfileTabs = (): React.JSX.Element => {
           {MOCK_SNAPS.map((snap) => (
             <View key={snap.id} style={styles.snapImageContainer}>
               <Image source={snap.image} style={styles.snapImage} contentFit="cover" transition={300} />
+              
             </View>
+            
           ))}
+          <View style={styles.snapImageContainer}>
+             <Pressable
+               onPress={navigateToExpoloreMe}
+              style={{flex: 1, justifyContent: 'center', alignItems: 'center',backgroundColor:'rgba(255,255,255,0.05)'}}>
+               <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+                <Text style={styles.text}>Xem thêm...</Text>
+            </View>
+             </Pressable>
+            </View>
         </View>
       ) : (
         <View style={styles.routesList}>
           {MOCK_ROUTES.map((route) => (
-            <View key={route.id} style={styles.routeCard}>
-              <Image source={route.image} style={styles.routeImage} contentFit="cover" transition={300} />
-              <View style={styles.routeInfo}>
-                <Text style={styles.routeTitle}>{route.title}</Text>
-                <View style={styles.routeLocationRow}>
-                  <MaterialIcons name="location-on" size={12} color={Colors.textMuted} />
-                  <Text style={styles.routeLocation}>{route.location}</Text>
-                </View>
-              </View>
-              <MaterialIcons name="chevron-right" size={24} color={Colors.textMuted} />
-            </View>
+            <SavedTripCard 
+              key={route.id} 
+              trip={route} 
+              onPress={(tripId) => navigation.navigate('SavedTrip', { tripId })} 
+            />
           ))}
+           <View  style={styles.routeCard}>
+             <Pressable
+               onPress={navigateToSavedTrip}
+              style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+               <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+                <Text style={styles.text}>Xem thêm...</Text>
+            </View>
+             </Pressable>
+            </View>
         </View>
       )}
     </View>
@@ -150,28 +178,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     gap: 16,
+    marginBottom: 12,
   },
-  routeImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 8,
-  },
-  routeInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  routeTitle: {
-    color: Colors.white,
+  text:{
+    color: Colors.primary,
     fontSize: 14,
     fontWeight: '700',
-  },
-  routeLocationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  routeLocation: {
-    color: Colors.textMuted,
-    fontSize: 10,
-  },
+  }
 });
