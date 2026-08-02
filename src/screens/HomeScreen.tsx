@@ -6,6 +6,8 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   Easing,
+  FadeIn,
+  FadeOut,
 } from 'react-native-reanimated';
 import { useAuth } from '../navigation/AuthContext';
 import { HomeScreenProps } from '../navigation/types';
@@ -16,12 +18,14 @@ import { CameraHeader } from '../components/CameraHeader';
 import { CameraToggles } from '../components/CameraToggles';
 import { CaptureBar } from '../components/CaptureBar';
 import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
-import { useCameraPermissions, CameraType, CameraView } from 'expo-camera';
+import { useCameraPermission, Camera, usePhotoOutput, CameraRef } from 'react-native-vision-camera';
+import { useLocation } from '../hooks/useLocation';
 
 export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element => {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [facing, setFacing] = useState<CameraType>('back');
-  const cameraRef = useRef<CameraView>(null);
+  const { hasPermission, requestPermission } = useCameraPermission();
+  const [facing, setFacing] = useState<'back' | 'front'>('back');
+  const photoOutput = usePhotoOutput();
+  const cameraRef = useRef< CameraRef>(null);
 
   const { logout } = useAuth();
   const { showAlert } = useAlert();
@@ -31,6 +35,9 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
   const [flashMode, setFlashMode] = useState<'on' | 'off' | 'auto'>('off');
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | undefined>(undefined);
   const [isPreviewVisible, setIsPreviewVisible] = useState<boolean>(false);
+
+  const {location}= useLocation()
+ 
 
   const fadeValue = useSharedValue(0);
 
@@ -43,6 +50,30 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
       opacity: fadeValue.value,
     };
   });
+
+  const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(null);
+
+  const handleTouch = async (e: any) => {
+    const { locationX, locationY } = e.nativeEvent;
+    
+    // Lưu tọa độ để vẽ vòng tròn
+    setFocusPoint({ x: locationX, y: locationY });
+    
+    try {
+      // Yêu cầu Camera lấy nét tại điểm chạm (VisionCamera v5)
+      await cameraRef.current?.focusTo({ x: locationX, y: locationY });
+    } catch (err) {
+      console.log('Lỗi focus:', err);
+    }
+
+    // Ẩn vòng tròn sau 1.5 giây
+    setTimeout(() => {
+      setFocusPoint((prev) => {
+        return prev?.x === locationX && prev?.y === locationY ? null : prev;
+      });
+    }, 1500);
+  };
+
 
   // Chuyển sang camera trước / sau
   const flipCamera = () => {
@@ -87,15 +118,14 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
 
   // Chụp ảnh
   const handleShutterPress = async () => {
-    if (cameraRef.current) {
+    if (cameraRef.current && photoOutput) {
       try {
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.7,
-          base64: false,
-        });
-        if (photo?.uri) {
-          console.log('Đã chụp ảnh, đường dẫn:', photo.uri);
-          setCapturedPhotoUri(photo.uri);
+        const photo = await photoOutput.capturePhotoToFile({
+          flashMode: flashMode === 'auto' ? 'auto' : flashMode === 'on' ? 'on' : 'off',
+        }, {});
+        if (photo?.filePath) {
+          console.log('Đã chụp ảnh, đường dẫn:', photo.filePath);
+          setCapturedPhotoUri(`file://${photo.filePath}`);
           setIsPreviewVisible(true);
         }
       } catch (error) {
@@ -116,17 +146,8 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
     }
   };
 
-  // Trạng thái 1: Đang khởi tạo hoặc chưa có kết quả xin quyền
-  if (!permission) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.infoText}>Đang khởi tạo Camera...</Text>
-      </View>
-    );
-  }
-
-  // Trạng thái 2: Người dùng chưa cấp quyền hoặc đã từ chối
-  if (!permission.granted) {
+  // Trạng thái: Người dùng chưa cấp quyền hoặc đã từ chối
+  if (!hasPermission) {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.infoText}>Chúng tôi cần quyền sử dụng Camera của bạn</Text>
@@ -150,14 +171,29 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
           />
 
           {/* 2. Camera Viewport Component */}
-          <View style={styles.previewContainer}>
-            <CameraView
+          <View style={styles.previewContainer} onTouchEnd={handleTouch}>
+            <Camera
               ref={cameraRef}
               style={styles.cameraView}
-              facing={facing}
-              flash={flashMode}
-              autofocus="on"
+              device={facing}
+              isActive={true}
+              enableNativeZoomGesture={true}
+              outputs={[photoOutput]}
             />
+            {/* Hiệu ứng Focus Icon */}
+            {focusPoint && (
+              <Animated.View
+                entering={FadeIn.duration(200)}
+                exiting={FadeOut.duration(400)}
+                style={[
+                  styles.focusIndicator,
+                  {
+                    left: focusPoint.x - 30, // trừ nửa width để tâm vào đúng điểm chạm
+                    top: focusPoint.y - 30,
+                  }
+                ]}
+              />
+            )}
           </View>
 
           {/* 3. Camera Controls / Toggles Component */}
@@ -261,5 +297,14 @@ const styles = StyleSheet.create({
   },
   cameraView: {
     flex: 1,
+  },
+  focusIndicator: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 1.5,
+    borderColor: '#FFD700',
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
   },
 });

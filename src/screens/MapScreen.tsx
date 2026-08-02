@@ -1,11 +1,14 @@
-import React from 'react';
-import { StyleSheet, View, Text, Platform, Pressable } from 'react-native';
-import MapView, { PROVIDER_DEFAULT } from 'react-native-maps';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, Text, Platform, Pressable,  } from 'react-native';
+import MapView, { PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import { Colors } from '../constants/Colors';
 import { MapScreenProps } from '../navigation/types';
 import { ExplorePost } from '../components/ExplorePostCard';
 import { MapMarkerItem } from '../components/MapMarkerItem';
 import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
+import { AlertProvider } from '../components/AlertProvider';
+import { useAlert } from '../components/AlertProvider';
 
 export const MAP_DARK_STYLE = [
   {
@@ -124,7 +127,10 @@ const MAP_POSTS: (ExplorePost & { latitude: number; longitude: number })[] = [
 
 
 
+
 export const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => {
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+ const { showAlert } = useAlert();  
 
   const handleCalloutPress = (post: ExplorePost) => {
     navigation.navigate('PostDetail', { post, posts: MAP_POSTS });
@@ -137,9 +143,31 @@ export const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => 
 
   };
 
-  const handleMyLocationPress = () => {
+  const handleMyLocationPress = async () => {
     console.log('My location pressed');
     // này sau cài thư viện location
+   
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if(status !== 'granted'){
+      console.log('Permission to access location was denied');
+      showAlert({
+        title: 'Permission to access location was denied',
+        message: 'Please enable location access to use this feature',
+        type: 'error',
+      });
+      return 
+    }
+     let currentLocation = await Location.getCurrentPositionAsync({});
+     if(!currentLocation){
+      console.log('Location not found');
+       showAlert({
+        title: 'Location not found',
+        message: 'Please enable location access to use this feature',
+        type: 'error',
+      });
+      return 
+    }
+    setLocation(currentLocation);
   };
 
   return (
@@ -156,6 +184,7 @@ export const MapScreen = ({ navigation }: MapScreenProps): React.JSX.Element => 
           longitudeDelta: 10,
         }}
         customMapStyle={MAP_DARK_STYLE}
+       
         userInterfaceStyle="dark"
       >
         {MAP_POSTS.map((post) => (
@@ -193,6 +222,17 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
   },
 
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
+  },
+  loadingText: {
+    color: Colors.white,
+    marginTop: 12,
+    fontSize: 16,
+  },
  
   floatingFAB: {
   

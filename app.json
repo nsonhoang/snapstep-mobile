@@ -7,7 +7,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "SnapStep sẽ sử dụng camera để chụp ảnh",
+        "NSMicrophoneUsageDescription": "SnapStep sẽ sử dụng microphone để quay video"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -27,11 +31,10 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      [
-        "expo-camera",
+       [
+        "expo-location",
         {
-          "cameraPermission": "SnapStep sẽ sử dụng camera để chụp ảnh",
-          "microphonePermission": "SnapStep sẽ sử dụng microphone để quay video"
+          "locationAlwaysAndWhenInUsePermission": "Allow SnapStep to use your location."
         }
       ],
       "expo-font",
