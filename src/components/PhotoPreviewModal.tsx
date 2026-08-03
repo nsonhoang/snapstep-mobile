@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, Modal, Image, Pressable, Switch } from 'react-native';
+import { StyleSheet, View, Text, Modal, Image, Pressable, Switch, TextInput, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import * as MediaLibrary from 'expo-media-library';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { LocationJourneySelector } from './LocationJourneySelector';
+import { CustomInput } from './CustomInput';
+import { useAlert } from '../components/AlertProvider';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 
 export interface PhotoPreviewModalProps {
   visible: boolean;
@@ -22,6 +27,48 @@ export const PhotoPreviewModal = ({
 }: PhotoPreviewModalProps): React.JSX.Element => {
   const [shareToMap, setShareToMap] = useState<boolean>(true);
   const [selectedJourney, setSelectedJourney] = useState<string>('Hà Giang, Việt Nam 🏔️');
+  const [caption, setCaption] = useState<string>('');
+
+
+  const keyboardHeight = useKeyboardHeight();
+
+  const animatedCaptionStyle = useAnimatedStyle(() => {
+    return {
+      paddingBottom: keyboardHeight.value, // Dùng value của SharedValue
+    };
+  });
+
+  const { showAlert } = useAlert();
+
+  const handleSavePhoto = async () => {
+    if (!photoUri) return;
+
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status === 'granted') {
+     await MediaLibrary.Asset.create(`file://${photoUri.replace('file://', '')}`);
+        console.log('Đã lưu ảnh, đường dẫn:', photoUri);
+        showAlert({
+          title: 'Thành công!',
+          message: 'Ảnh đã được lưu vào thư viện máy của bạn.',
+          type: 'success',
+        });
+      } else {
+        showAlert({
+          title: 'Lỗi',
+          message: 'Bạn cần cấp quyền truy cập Thư viện để lưu ảnh.',
+          type: 'error',
+        });
+      }
+    } catch (error) {
+      console.error('Lỗi khi lưu ảnh:', error);
+      showAlert({
+        title: 'Lỗi',
+        message: 'Không thể lưu ảnh lúc này.',
+        type: 'error',
+      });
+    }
+  };
 
   return (
     <Modal
@@ -30,15 +77,16 @@ export const PhotoPreviewModal = ({
       transparent={false}
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.modalContainer}>
-        {/* Header Navigation */}
-        <View style={styles.header}>
-          <Pressable onPress={onClose} style={styles.iconButton} hitSlop={8}>
-            <Feather name="x" size={24} color={Colors.white} />
-          </Pressable>
-          <Text style={styles.headerTitle}>Post Preview</Text>
-          <View style={{ width: 40 }} />
-        </View>
+      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+        <SafeAreaView style={styles.modalContainer}>
+          {/* Header Navigation */}
+          <View style={styles.header}>
+            <Pressable onPress={onClose} style={styles.iconButton} hitSlop={8}>
+              <Feather name="x" size={24} color={Colors.white} />
+            </Pressable>
+            <Text style={styles.headerTitle}>Post Preview</Text>
+            <View style={{ width: 40 }} />
+          </View>
 
         {/* Main Content Area */}
         <View style={styles.content}>
@@ -56,13 +104,23 @@ export const PhotoPreviewModal = ({
               </View>
             )}
 
-            {/* Location Tag Badge Component */}
+            {/* Gắn thẻ địa điểm (Bên trên ảnh) */}
             <View style={styles.locationBadgeWrapper}>
               <LocationJourneySelector
                 selectedJourney={selectedJourney}
                 onSelectJourney={setSelectedJourney}
               />
             </View>
+
+            {/* Input Mô tả (Bên dưới ảnh) */}
+            <Animated.View style={[styles.captionWrapper, animatedCaptionStyle]}>
+              <CustomInput
+                placeholder="Viết gì đó"
+                value={caption}
+                onChangeText={setCaption}
+                style={styles.captionInput}
+              />
+            </Animated.View>
           </View>
 
           {/* Post Details & Map Toggle Option */}
@@ -71,6 +129,7 @@ export const PhotoPreviewModal = ({
               <View style={styles.optionTextContainer}>
                 <View style={styles.labelWithIcon}>
                   <MaterialCommunityIcons name="map-marker-path" size={18} color={Colors.primary} />
+                  {/* nếu có vị trí thì bật lên  */}
                   <Text style={styles.optionTitle}>Chia sẻ lên Bản đồ Bước chân</Text>
                 </View>
                 <Text style={styles.optionSubtitle}>
@@ -78,8 +137,9 @@ export const PhotoPreviewModal = ({
                 </Text>
               </View>
               <Switch
+                /* nếu có vị trí thì bật lên  */
                 value={shareToMap}
-                onValueChange={setShareToMap}
+                onValueChange={setShareToMap} 
                 trackColor={{ false: '#3A3A3C', true: Colors.primary }}
                 thumbColor={Colors.white}
               />
@@ -87,25 +147,26 @@ export const PhotoPreviewModal = ({
           </View>
         </View>
 
-        {/* Bottom Action Footer */}
-        <View style={styles.footer}>
-          <Pressable
-            onPress={onRetake}
-            style={[styles.actionButton, styles.retakeButton]}
-          >
-            <Feather name="rotate-ccw" size={18} color={Colors.white} />
-            <Text style={styles.retakeText}>Chụp lại</Text>
-          </Pressable>
+          {/* Bottom Action Footer */}
+          <View style={styles.footer}>
+            <Pressable
+              onPress={handleSavePhoto}
+              style={[styles.actionButton, styles.retakeButton]}
+            >
+              <Feather name="download" size={18} color={Colors.white} />
+              <Text style={styles.retakeText}>Lưu ảnh</Text>
+            </Pressable>
 
-          <Pressable
-            onPress={onPost || onClose}
-            style={[styles.actionButton, styles.postButton]}
-          >
-            <Feather name="send" size={18} color={Colors.black} />
-            <Text style={styles.postText}>Đăng ảnh</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
+            <Pressable
+              onPress={onPost || onClose}
+              style={[styles.actionButton, styles.postButton]}
+            >
+              <Feather name="send" size={18} color={Colors.black} />
+              <Text style={styles.postText}>Đăng ảnh</Text>
+            </Pressable>
+            </View>
+        </SafeAreaView>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
@@ -161,8 +222,26 @@ const styles = StyleSheet.create({
   },
   locationBadgeWrapper: {
     position: 'absolute',
-    bottom: 16,
+    top: 16,
     left: 16,
+  
+    zIndex: 10,
+  },
+  captionWrapper: {
+    position: 'absolute',
+    bottom: 0, 
+    left: 40, // Ép lùi vào từ 2 bên để căn giữa và thu nhỏ chiều rộng
+    right: 40,
+    zIndex: 10,
+  },
+  captionInput: {
+    backgroundColor: Colors.glassDark,
+    borderWidth: 1,
+    borderColor: Colors.glassBorder,
+    color: Colors.white,
+    textAlign: 'center',
+    borderRadius: 40,
+    height: 48, // Ép chiều cao giống nút (Pill shape)
   },
   detailsCard: {
     backgroundColor: '#1E252B',

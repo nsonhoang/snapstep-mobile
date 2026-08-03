@@ -12,4 +12,6 @@ export const Colors = {
   white: '#FFFFFF',
   black: '#000000',
   transparent: 'transparent',
+  glassDark: 'rgba(20, 25, 30, 0.65)',      // Nền Liquid Glass Dark
+  glassBorder: 'rgba(255, 255, 255, 0.15)', // Viền Liquid Glass mờ
 };

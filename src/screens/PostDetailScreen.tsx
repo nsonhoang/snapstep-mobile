@@ -5,6 +5,10 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   TouchableWithoutFeedback,
+  LayoutChangeEvent,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  ViewToken,
 } from 'react-native';
 import { FlatList } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,8 +20,6 @@ import { useAuth } from '../navigation/AuthContext';
 import { MyPhotoCard } from '../components/MyPhotoCard';
 import { FriendPhotoCard } from '../components/FriendPhotoCard';
 import { PostDetailHeader } from '../components/PostDetailHeader';
-import { CommentInputBar } from '../components/CommentInputBar';
-
 export const PostDetailScreen = ({
   navigation,
   route,
@@ -25,7 +27,7 @@ export const PostDetailScreen = ({
   const { post, posts: postsParam } = route.params;
   const { showAlert } = useAlert();
   const { user } = useAuth();
-  const [commentText, setCommentText] = useState<string>('');
+  
   const [flatListHeight, setFlatListHeight] = useState<number>(0);
 
   // Sử dụng mảng fallback nếu không có danh sách bài viết
@@ -37,19 +39,6 @@ export const PostDetailScreen = ({
 
   const flatListRef = useRef<FlatList<ExplorePost>>(null);
 
-  // Tối ưu các callback với useCallback để tránh re-render không cần thiết
-  const handleSendComment = useCallback((): void => {
-    if (!commentText.trim()) return;
-
-    showAlert({
-      title: 'Đã gửi phản hồi',
-      message: `Bình luận của bạn trên bài viết @${activePost.userName || 'user'}: "${commentText}"`,
-      type: 'success',
-    });
-    setCommentText('');
-    Keyboard.dismiss();
-  }, [commentText, activePost, showAlert]);
-
   const handleSettings = useCallback((): void => {
     showAlert({
       title: 'Tùy chọn bài viết',
@@ -58,33 +47,42 @@ export const PostDetailScreen = ({
     });
   }, [showAlert]);
 
-  const handleLayout = useCallback((e: any) => {
+  const handleLayout = useCallback((e: LayoutChangeEvent) => {
     const { height } = e.nativeEvent.layout;
-    if (height > 0 && flatListHeight === 0) {
-      setFlatListHeight(height);
+    // Làm tròn xuống để tránh sai số thập phân (gây lệch ảnh khi lướt)
+    const roundedHeight = Math.floor(height);
+    if (roundedHeight > 0 && flatListHeight === 0) {
+      setFlatListHeight(roundedHeight);
     }
   }, [flatListHeight]);
 
-  const getItemLayout = useCallback((_data: any, index: number) => ({
+  const getItemLayout = useCallback((_data: ArrayLike<ExplorePost> | null | undefined, index: number) => ({
     length: flatListHeight,
     offset: flatListHeight * index,
     index,
   }), [flatListHeight]);
 
-  const onScrollToIndexFailed = useCallback((info: any) => {
+  const onScrollToIndexFailed = useCallback((info: { index: number; highestMeasuredFrameIndex: number; averageItemLength: number }) => {
     const wait = new Promise((resolve) => setTimeout(resolve, 50));
     wait.then(() => {
       flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
     });
   }, []);
 
-  const onMomentumScrollEnd = useCallback((e: any) => {
-    const offset = e.nativeEvent.contentOffset.y;
-    const index = Math.round(offset / flatListHeight);
-    if (index >= 0 && index < posts.length) {
-      setCurrentIndex(index);
+  // Cấu hình điều kiện để coi là 1 item đang được focus (chiếm 50% màn hình)
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50,
+  }).current;
+
+  // Lắng nghe item nào đang chiếm > 50% màn hình (tránh stale closure bằng state setter)
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: Array<ViewToken> }) => {
+    if (viewableItems.length > 0 && viewableItems[0].isViewable) {
+      const newIndex = viewableItems[0].index;
+      if (newIndex !== null && newIndex !== undefined) {
+        setCurrentIndex((prev) => (prev !== newIndex ? newIndex : prev));
+      }
     }
-  }, [flatListHeight, posts.length]);
+  }).current;
 
   const renderItem = useCallback(({ item }: { item: ExplorePost }) => {
     return user.id === item.userId ? (
@@ -104,40 +102,42 @@ export const PostDetailScreen = ({
             onSettings={handleSettings}
           />
 
-          <View style={styles.listWrapper} onLayout={handleLayout}>
+          <View style={styles.listWrapper}  onLayout={handleLayout}>
             {flatListHeight > 0 && (
               <FlatList
                 ref={flatListRef}
                 data={posts}
                 keyExtractor={(item) => item.id}
-                pagingEnabled
+                pagingEnabled={true}
+                snapToInterval={flatListHeight}
+                snapToAlignment="start"
+                decelerationRate="fast"
+                disableIntervalMomentum={true}
+                
                 showsVerticalScrollIndicator={false}
                 initialNumToRender={10}
                 initialScrollIndex={initialIndex !== -1 ? initialIndex : 0}
                 getItemLayout={getItemLayout}
                 onScrollToIndexFailed={onScrollToIndexFailed}
-                onMomentumScrollEnd={onMomentumScrollEnd}
+                
+                // --- BẮT SỰ KIỆN FOCUS ---
+                onViewableItemsChanged={onViewableItemsChanged}
+                viewabilityConfig={viewabilityConfig}
+                
                 renderItem={renderItem}
-                contentInsetAdjustmentBehavior="automatic"
               />
             )}
+             </View>
+          
+           
           </View>
-        </View>
+      
       </TouchableWithoutFeedback>
 
       {/* Floating Keyboard Avoiding Container */}
-      <KeyboardAvoidingView
-        style={styles.floatingKeyboardContainer}
-        behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}
-        pointerEvents="box-none"
-      >
-        <CommentInputBar
-          value={commentText}
-          onChangeText={setCommentText}
-          onSubmit={handleSendComment}
-          visible={user.id !== activePost.userId}
-        />
-      </KeyboardAvoidingView>
+   
+    
+      
     </SafeAreaView>
   );
 };

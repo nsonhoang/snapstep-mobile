@@ -185,6 +185,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   myPhotoStatsContainer: {
+    flex:1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

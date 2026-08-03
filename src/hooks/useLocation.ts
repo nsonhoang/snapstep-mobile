@@ -30,19 +30,25 @@ export const useLocation = () => {
       });
 
       // 3. Dịch tọa độ ngược ra tên địa chỉ (Reverse Geocoding)
-      const reverseGeocode = await Location.reverseGeocodeAsync({
-        latitude: currentLocation.coords.latitude,
-        longitude: currentLocation.coords.longitude,
-      });
-
       let addressText = 'Vị trí không xác định';
-      if (reverseGeocode.length > 0) {
-        const place = reverseGeocode[0];
-        // Ghép tên thành phố và quốc gia
-        addressText = [place.city || place.subregion, place.country]
-          .filter(Boolean)
-          .join(', ');
+      try {
+        const reverseGeocode = await Location.reverseGeocodeAsync({
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude,
+        });
+
+        if (reverseGeocode.length > 0) {
+          const place = reverseGeocode[0];
+          // Ghép tên thành phố và quốc gia
+          addressText = [place.city || place.subregion, place.country]
+            .filter(Boolean)
+            .join(', ');
+        }
+      } catch (geocodeError) {
+        console.warn('Lỗi khi dịch địa chỉ (Reverse Geocode):', geocodeError);
+        // Vẫn tiếp tục chạy để lấy được tọa độ (Lat, Long)
       }
+      console.log('Address:', currentLocation);
 
       // 4. Cập nhật state
       setLocation({
@@ -50,6 +56,7 @@ export const useLocation = () => {
         longitude: currentLocation.coords.longitude,
         address: addressText,
       });
+
     } catch (error) {
       console.error('Lỗi khi lấy vị trí:', error);
       setErrorMsg('Không thể lấy được vị trí hiện tại. Vui lòng kiểm tra lại GPS hoặc kết nối mạng.');

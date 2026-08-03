@@ -4,6 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { ExplorePost } from './ExplorePostCard';
 import { FloatingEmoji, FloatingItem } from './FloatingEmoji';
+import { useAlert } from './AlertProvider';
+import { CommentInputBar } from './CommentInputBar';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 const EMOJI_REACTIONS = [
   { id: 'heart', emoji: '❤️' },
@@ -22,6 +26,28 @@ interface FriendPhotoCardProps {
 export const FriendPhotoCard = ({ post, containerHeight }: FriendPhotoCardProps): React.JSX.Element => {
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingItem[]>([]);
+  const [commentText, setCommentText] = useState<string>('');
+  
+  const keyboardHeight = useKeyboardHeight();
+
+  const keyboardAdaptiveStyle = useAnimatedStyle(() => {
+    return {
+      bottom: keyboardHeight.value,
+    };
+  });
+
+  const { showAlert } = useAlert();
+
+  const handleSendComment = useCallback((): void => {
+    if (!commentText.trim()) return;
+
+    showAlert({
+      title: 'Đã gửi phản hồi',
+      message: `Bình luận của bạn trên bài viết @${post.userName || 'user'}: "${commentText}"`,
+      type: 'success',
+    });
+    setCommentText('');
+  }, [commentText, post, showAlert]);
 
   const removeFloatingEmoji = useCallback((id: string) => {
     setFloatingEmojis((prev) => prev.filter((item) => item.id !== id));
@@ -104,7 +130,15 @@ export const FriendPhotoCard = ({ post, containerHeight }: FriendPhotoCardProps)
       </View>
 
       {/* Spacer to prevent Floating CommentBar from covering reactions */}
-      <View style={{ height: 60 }} />
+    
+     <Animated.View style={[styles.commentContainer,keyboardAdaptiveStyle]}>
+       <CommentInputBar
+        value={commentText}
+        onChangeText={setCommentText}
+        onSubmit={handleSendComment}
+        visible={true}
+      />
+     </Animated.View>
     </View>
   );
 };
@@ -119,7 +153,7 @@ const styles = StyleSheet.create({
   cardWrapper: {
     width: '100%',
     aspectRatio: 3 / 4,
-    borderRadius: 28,
+    borderRadius: 40,
     overflow: 'hidden',
     borderWidth: 1.5,
     borderColor: 'rgba(112, 194, 180, 0.35)',
@@ -223,4 +257,11 @@ const styles = StyleSheet.create({
   emojiSymbol: {
     fontSize: 19,
   },
+  commentContainer:{
+    flex:1,
+    width:'100%',
+    alignItems:'center',
+    justifyContent:'center',
+    
+  }
 });

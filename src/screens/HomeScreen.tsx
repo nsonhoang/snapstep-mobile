@@ -19,10 +19,12 @@ import { CameraToggles } from '../components/CameraToggles';
 import { CaptureBar } from '../components/CaptureBar';
 import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
 import { useCameraPermission, Camera, usePhotoOutput, CameraRef } from 'react-native-vision-camera';
+import { createLocation } from 'react-native-vision-camera-location';
 import { useLocation } from '../hooks/useLocation';
 
 export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element => {
   const { hasPermission, requestPermission } = useCameraPermission();
+ 
   const [facing, setFacing] = useState<'back' | 'front'>('back');
   const photoOutput = usePhotoOutput();
   const cameraRef = useRef< CameraRef>(null);
@@ -36,7 +38,8 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
   const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | undefined>(undefined);
   const [isPreviewVisible, setIsPreviewVisible] = useState<boolean>(false);
 
-  const {location}= useLocation()
+  // Dùng chung 1 hook useLocation duy nhất của chúng ta
+  const { location, refetch } = useLocation();
  
 
   const fadeValue = useSharedValue(0);
@@ -44,6 +47,17 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
   useEffect(() => {
     fadeValue.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
   }, [fadeValue]);
+
+  useEffect(() => {
+    // 1. Xin quyền Camera
+    if (!hasPermission) {
+      requestPermission();
+    }
+    // 2. Xin quyền Vị trí (dùng hook của chúng ta, nó có tích hợp sẵn xin quyền)
+    refetch();
+  }, []);
+
+  
 
   const animatedContainerStyle = useAnimatedStyle(() => {
     return {
@@ -117,22 +131,42 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
   };
 
   // Chụp ảnh
-  const handleShutterPress = async () => {
-    if (cameraRef.current && photoOutput) {
-      try {
-        const photo = await photoOutput.capturePhotoToFile({
-          flashMode: flashMode === 'auto' ? 'auto' : flashMode === 'on' ? 'on' : 'off',
-        }, {});
-        if (photo?.filePath) {
-          console.log('Đã chụp ảnh, đường dẫn:', photo.filePath);
-          setCapturedPhotoUri(`file://${photo.filePath}`);
-          setIsPreviewVisible(true);
-        }
-      } catch (error) {
-        console.error('Lỗi khi chụp ảnh:', error);
+ const handleShutterPress = async () => {
+  if (cameraRef.current && photoOutput) {
+    try {
+      // 1. Chuyển đổi tọa độ của hook thành format của VisionCamera
+      const visionLocation = location 
+        ? createLocation(location.latitude, location.longitude) 
+        : undefined;
+      // 2. Gọi lệnh chụp và truyền location vào
+      const photo = await photoOutput.capturePhotoToFile({
+        flashMode: flashMode === 'auto' ? 'auto' : flashMode === 'on' ? 'on' : 'off',
+        location: visionLocation, // Bắt buộc truyền cái này thì ảnh mới có GPS
+      }, {});
+      
+ 
+      if (photo?.filePath) {
+        console.log('Đã chụp ảnh, đường dẫn:', photo.filePath);
+        
+        // 3. LẤY THÔNG TIN LOCATION & TIMESTAMP TỪ BỨC ẢNH CHỤP XONG
+        console.log('--- THÔNG TIN ẢNH ---');
+     
+        
+        // Bạn có thể lấy trực tiếp thời gian hiện tại lúc chụp 
+        const timestamp = new Date().toISOString(); 
+        console.log('Thời gian chụp:', timestamp);
+        // console.log('Toàn bộ siêu dữ liệu ảnh:', JSON.stringify(photo.metadata, null, 2));
+        
+        // Vị trí (Kinh độ/Vĩ độ/Tên đường) - Lấy từ hook đã lưu sẵn
+        console.log('Vị trí chụp:', location);
+        setCapturedPhotoUri(`file://${photo.filePath}`);
+        setIsPreviewVisible(true);
       }
+    } catch (error) {
+      console.error('Lỗi khi chụp ảnh:', error);
     }
-  };
+  }
+};
 
   const handleThumbnailPress = (): void => {
     if (capturedPhotoUri) {
