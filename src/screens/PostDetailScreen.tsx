@@ -10,7 +10,7 @@ import {
   NativeScrollEvent,
   ViewToken,
 } from 'react-native';
-import { FlatList } from 'react-native-gesture-handler';
+import { FlashList, useLayoutState } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../constants/Colors';
 import { PostDetailScreenProps } from '../navigation/types';
@@ -37,7 +37,8 @@ export const PostDetailScreen = ({
   const [currentIndex, setCurrentIndex] = useState<number>(initialIndex !== -1 ? initialIndex : 0);
   const activePost = posts[currentIndex] || post;
 
-  const flatListRef = useRef<FlatList<ExplorePost>>(null);
+  
+  const flatListRef = useRef(null);
 
   const handleSettings = useCallback((): void => {
     showAlert({
@@ -56,18 +57,7 @@ export const PostDetailScreen = ({
     }
   }, [flatListHeight]);
 
-  const getItemLayout = useCallback((_data: ArrayLike<ExplorePost> | null | undefined, index: number) => ({
-    length: flatListHeight,
-    offset: flatListHeight * index,
-    index,
-  }), [flatListHeight]);
 
-  const onScrollToIndexFailed = useCallback((info: { index: number; highestMeasuredFrameIndex: number; averageItemLength: number }) => {
-    const wait = new Promise((resolve) => setTimeout(resolve, 50));
-    wait.then(() => {
-      flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
-    });
-  }, []);
 
   // Cấu hình điều kiện để coi là 1 item đang được focus (chiếm 50% màn hình)
   const viewabilityConfig = useRef({
@@ -94,9 +84,8 @@ export const PostDetailScreen = ({
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View style={styles.innerContainer}>
-          <PostDetailHeader
+      <View style={styles.innerContainer}>
+        <PostDetailHeader
             activePost={activePost}
             onBack={() => navigation.goBack()}
             onSettings={handleSettings}
@@ -104,7 +93,7 @@ export const PostDetailScreen = ({
 
           <View style={styles.listWrapper}  onLayout={handleLayout}>
             {flatListHeight > 0 && (
-              <FlatList
+              <FlashList
                 ref={flatListRef}
                 data={posts}
                 keyExtractor={(item) => item.id}
@@ -115,10 +104,11 @@ export const PostDetailScreen = ({
                 disableIntervalMomentum={true}
                 
                 showsVerticalScrollIndicator={false}
-                initialNumToRender={10}
                 initialScrollIndex={initialIndex !== -1 ? initialIndex : 0}
-                getItemLayout={getItemLayout}
-                onScrollToIndexFailed={onScrollToIndexFailed}
+                
+                // --- XỬ LÝ BÀN PHÍM CHUẨN CHO DANH SÁCH ---
+                keyboardDismissMode="on-drag"
+                keyboardShouldPersistTaps="handled"
                 
                 // --- BẮT SỰ KIỆN FOCUS ---
                 onViewableItemsChanged={onViewableItemsChanged}
@@ -130,14 +120,7 @@ export const PostDetailScreen = ({
              </View>
           
            
-          </View>
-      
-      </TouchableWithoutFeedback>
-
-      {/* Floating Keyboard Avoiding Container */}
-   
-    
-      
+        </View>
     </SafeAreaView>
   );
 };

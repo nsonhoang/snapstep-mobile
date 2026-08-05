@@ -21,6 +21,7 @@ import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
 import { useCameraPermission, Camera, usePhotoOutput, CameraRef } from 'react-native-vision-camera';
 import { createLocation } from 'react-native-vision-camera-location';
 import { useLocation } from '../hooks/useLocation';
+import { ImageUtils } from '../utils/imageUtils';
 
 export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element => {
   const { hasPermission, requestPermission } = useCameraPermission();
@@ -146,11 +147,14 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
       
  
       if (photo?.filePath) {
-        console.log('Đã chụp ảnh, đường dẫn:', photo.filePath);
+        console.log('Đã chụp ảnh gốc, đường dẫn:', photo.filePath);
+        
+        // Gọi ImageUtils để nén ảnh siêu tốc bằng C++
+        const compressedUri = await ImageUtils.compressImage(photo.filePath);
+        console.log('Đã nén ảnh thành công, đường dẫn mới:', compressedUri);
         
         // 3. LẤY THÔNG TIN LOCATION & TIMESTAMP TỪ BỨC ẢNH CHỤP XONG
         console.log('--- THÔNG TIN ẢNH ---');
-     
         
         // Bạn có thể lấy trực tiếp thời gian hiện tại lúc chụp 
         const timestamp = new Date().toISOString(); 
@@ -159,7 +163,9 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
         
         // Vị trí (Kinh độ/Vĩ độ/Tên đường) - Lấy từ hook đã lưu sẵn
         console.log('Vị trí chụp:', location);
-        setCapturedPhotoUri(`file://${photo.filePath}`);
+        
+        // Lưu ảnh đã nén (compressedUri đã bao gồm file://) để hiển thị Preview
+        setCapturedPhotoUri(compressedUri);
         setIsPreviewVisible(true);
       }
     } catch (error) {

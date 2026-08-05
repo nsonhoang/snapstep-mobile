@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { StyleSheet, View, Text, Image, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
@@ -28,6 +28,13 @@ export const FriendPhotoCard = ({ post, containerHeight }: FriendPhotoCardProps)
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingItem[]>([]);
   const [commentText, setCommentText] = useState<string>('');
   
+  // RẤT QUAN TRỌNG VỚI FLASHLIST: Reset State khi bị tái chế (recycle)
+  useEffect(() => {
+    setSelectedEmoji(null);
+    setFloatingEmojis([]);
+    setCommentText('');
+  }, [post.id]);
+
   const keyboardHeight = useKeyboardHeight();
 
   const keyboardAdaptiveStyle = useAnimatedStyle(() => {

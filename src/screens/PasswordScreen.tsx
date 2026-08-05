@@ -147,14 +147,7 @@ export const PasswordScreen = ({ route, navigation }: PasswordScreenProps): Reac
                     <Text style={styles.primaryButtonText}>
                       {isLoading ? 'Signing in...' : 'Log In'}
                     </Text>
-                    {!isLoading && (
-                      <Feather 
-                        name="check" 
-                        size={18} 
-                        color={Colors.black} 
-                        style={styles.buttonIcon} 
-                      />
-                    )}
+                  
                   </View>
                 </Pressable>
               </View>

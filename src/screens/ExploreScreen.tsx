@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { StyleSheet, View, FlatList, Pressable } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { StyleSheet, View, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlashList } from '@shopify/flash-list';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { ExploreScreenProps } from '../navigation/types';
@@ -8,7 +9,6 @@ import { ExploreSearchBar } from '../components/ExploreSearchBar';
 import { ExploreFilterChips, FilterChipItem } from '../components/ExploreFilterChips';
 import { ExplorePostCard, ExplorePost } from '../components/ExplorePostCard';
 
-import { useAlert } from '../components/AlertProvider';
 import { ExploreSkeleton } from '../components/ExploreSkeleton';
 
 const MOCK_FILTER_CHIPS: FilterChipItem[] = [
@@ -53,7 +53,7 @@ const MOCK_POSTS: ExplorePost[] = [
   },
   {
     id: 'post-4',
-    userId:"3,",
+    userId:"3",
     imageUrl: 'https://images.unsplash.com/photo-1528127269322-539801943592?q=80&w=800',
     location: 'Ha Noi',
     timeAgo: '1d ago',
@@ -82,7 +82,6 @@ const MOCK_POSTS: ExplorePost[] = [
 ];
 
 export const ExploreScreen = ({ navigation }: ExploreScreenProps): React.JSX.Element => {
-  const { showAlert } = useAlert();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedChipId, setSelectedChipId] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'feed'>('grid');
@@ -102,17 +101,27 @@ export const ExploreScreen = ({ navigation }: ExploreScreenProps): React.JSX.Ele
       return MOCK_POSTS.filter((post) =>
         post.location.toLowerCase().includes(searchQuery.toLowerCase())
       );
+    } else {
+      return MOCK_POSTS.filter((post) =>
+        post.userId === selectedChipId &&
+        post.location.toLowerCase().includes(searchQuery.toLowerCase())
+      );
     }
-    else {return MOCK_POSTS.filter((post) =>
-      post.userId === selectedChipId
-      && post.location.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }
   }, [searchQuery, selectedChipId]);
 
-  const handlePressPost = (post: ExplorePost): void => {
+  const handlePressPost = useCallback((post: ExplorePost): void => {
     navigation.navigate('PostDetail', { post, posts: filteredPosts });
-  };
+  }, [navigation, filteredPosts]);
+
+  const renderPostItem = useCallback(({ item }: { item: ExplorePost }) => (
+    <View style={viewMode === 'grid' ? styles.gridCell : styles.feedCell}>
+      <ExplorePostCard
+        post={item}
+        isFeedMode={viewMode === 'feed'}
+        onPressPost={handlePressPost}
+      />
+    </View>
+  ), [viewMode, handlePressPost]);
 
   // Toggle View Mode with quick Skeleton feedback
   const handleToggleViewMode = (): void => {
@@ -146,24 +155,17 @@ export const ExploreScreen = ({ navigation }: ExploreScreenProps): React.JSX.Ele
       {isLoading ? (
         <ExploreSkeleton viewMode={viewMode} />
       ) : (
-        <FlatList
-          key={viewMode === 'grid' ? 'grid-list' : 'feed-list'}
-          data={filteredPosts}
-          keyExtractor={(item) => item.id}
-          numColumns={viewMode === 'grid' ? 2 : 1}
-          columnWrapperStyle={viewMode === 'grid' ? styles.columnWrapper : undefined}
-          renderItem={({ item }) => (
-            <View style={viewMode === 'grid' ? styles.gridCell : styles.feedCell}>
-              <ExplorePostCard
-                post={item}
-                isFeedMode={viewMode === 'feed'}
-                onPressPost={handlePressPost}
-              />
-            </View>
-          )}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.flatListContent}
-        />
+        <View style={{ flex: 1 }}>
+          <FlashList
+            key={viewMode === 'grid' ? 'grid-list' : 'feed-list'}
+            data={filteredPosts}
+            keyExtractor={(item) => item.id}
+            numColumns={viewMode === 'grid' ? 2 : 1}
+            renderItem={renderPostItem}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.flatListContent}
+          />
+        </View>
       )}
 
       {/* Dynamic View Toggle FAB */}
@@ -190,17 +192,18 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   flatListContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 10,
     paddingBottom: 90,
-  },
-  columnWrapper: {
-    gap: 12,
   },
   gridCell: {
     flex: 1,
+    paddingHorizontal: 6,
+    paddingVertical: 6,
   },
   feedCell: {
     width: '100%',
+    paddingHorizontal: 6,
+    paddingVertical: 6,
   },
   fab: {
     position: 'absolute',
