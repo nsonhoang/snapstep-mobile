@@ -57,7 +57,7 @@ export const PasswordScreen = ({ route, navigation }: PasswordScreenProps): Reac
     };
   });
 
-  const handleLogin = (): void => {
+  const handleLogin = async (): Promise<void> => {
     if (!passwordValue.trim()) {
       showAlert({
         title: 'Authentication',
@@ -66,11 +66,15 @@ export const PasswordScreen = ({ route, navigation }: PasswordScreenProps): Reac
       });
       return;
     }
+    
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      await login(identifier, passwordValue);
+    } catch (error) {
+      console.log(error);
+    } finally {
       setIsLoading(false);
-      login();
-    }, 1000);
+    }
   };
 
   return (

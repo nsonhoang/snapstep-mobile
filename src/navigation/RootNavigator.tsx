@@ -1,9 +1,10 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect } from 'react';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from './AuthContext';
 import { RootStackParamList } from './types';
 import { LoginScreen } from '../screens/LoginScreen';
+import { RegisterScreen } from '../screens/RegisterScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { PasswordScreen } from '../screens/PasswordScreen';
 import { PostDetailScreen } from '../screens/PostDetailScreen';
@@ -16,12 +17,15 @@ import { AllSavedTripsScreen } from '../screens/AllSavedTripsScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
 import { HelpAndSupportScreen } from '../screens/HelpAndSupportScreen';
+import { VerifyEmailScreen } from '../screens/VerifyEmailScreen';
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const RootNavigator = (): React.JSX.Element => {
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
+
+
 
   return (
     <NavigationContainer>
@@ -31,9 +35,10 @@ export const RootNavigator = (): React.JSX.Element => {
           animation: 'fade_from_bottom',
         }}
       >
-        {isAuthenticated ? (
-          // Private Routes
-          <>
+        {user ? (
+          user.emailVerified ? (
+            // Private Routes (Verified)
+            <>
             <Stack.Screen name="MainTabs" component={MainTabNavigator} />
             <Stack.Screen
               name="Home"
@@ -95,11 +100,16 @@ export const RootNavigator = (): React.JSX.Element => {
               component={HelpAndSupportScreen}
               options={{ animation: 'slide_from_right' }}
             />
-          </>
+            </>
+          ) : (
+            // Unverified Route
+            <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+          )
         ) : (
           // Public Routes
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="Password" component={PasswordScreen} />
           </>
         )}

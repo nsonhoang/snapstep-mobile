@@ -13,6 +13,8 @@ export type MainTabParamList = {
 
 export type RootStackParamList = {
   Login: undefined;
+  Register: undefined;
+  VerifyEmail: undefined;
   Password: { identifier: string; isPhone: boolean };
   MainTabs: NavigatorScreenParams<MainTabParamList>;
   Home: undefined;
@@ -28,6 +30,8 @@ export type RootStackParamList = {
 };
 
 export type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
+export type RegisterScreenProps = NativeStackScreenProps<RootStackParamList, 'Register'>;
+export type VerifyEmailScreenProps = NativeStackScreenProps<RootStackParamList, 'VerifyEmail'>;
 export type PasswordScreenProps = NativeStackScreenProps<RootStackParamList, 'Password'>;
 export type PostDetailScreenProps = NativeStackScreenProps<RootStackParamList, 'PostDetail'>;
 export type SavedTripScreenProps = NativeStackScreenProps<RootStackParamList, 'SavedTrip'>;

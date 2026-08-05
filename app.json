@@ -7,12 +7,14 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "bundleIdentifier": "com.hoangshpy.SnapStep",
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "SnapStep sẽ sử dụng camera để chụp ảnh",
         "NSMicrophoneUsageDescription": "SnapStep sẽ sử dụng microphone để quay video",
-         "NSLocationWhenInUseUsageDescription": "$(PRODUCT_NAME) needs access to your Location to add GPS tags to captured photos.",
-         "NSPhotoLibraryUsageDescription": "SnapStep sẽ lưu ảnh bạn chụp vào thư viện máy"
+        "NSLocationWhenInUseUsageDescription": "$(PRODUCT_NAME) needs access to your Location to add GPS tags to captured photos.",
+        "NSPhotoLibraryUsageDescription": "SnapStep sẽ lưu ảnh bạn chụp vào thư viện máy"
       }
     },
     "android": {
@@ -21,22 +23,25 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
-        "android.permission.ACCESS_FINE_LOCATION", "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
+      "googleServicesFile": "./google-services.json",
       "package": "com.hoangshpy.SnapStep"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-       [
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow SnapStep to use your location."
@@ -50,6 +55,20 @@
           "photosPermission": "Cho phép SnapStep lưu ảnh vào thiết bị của bạn",
           "savePhotosPermission": "Cho phép SnapStep lưu ảnh vào thiết bị của bạn",
           "isAccessMediaLocationEnabled": true
+        }
+      ],
+    
+       [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static",
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBAuth"
+            
+            ]
+          }
         }
       ]
     ]

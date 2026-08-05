@@ -67,7 +67,7 @@ export const AllSavedTripsScreen = ({ navigation }: AllSavedTripsScreenProps): R
 
       {/* Danh sách hành trình */}
       <FlatList
-        data={isLoading ? [1, 2, 3] : trips}
+        data={isLoading ? (['1', '2', '3'] as unknown as typeof trips) : trips}
         keyExtractor={(item, index) => isLoading ? `skeleton-${index}` : (item ).id}
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="automatic"

@@ -8,21 +8,21 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   ImageBackground,
-  TextInput,
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, FontAwesome } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { LoginScreenProps } from '../navigation/types';
+import { useAuth } from '../navigation/AuthContext';
 import { Colors } from '../constants/Colors';
 import { useAlert } from '../components/AlertProvider';
-import { useAuth } from '../navigation/AuthContext';
+import { CustomInput } from '../components/CustomInput';
+import { RegisterScreenProps } from '../navigation/types';
 
 const CompassIcon = (): React.JSX.Element => (
   <View style={styles.compassOuter}>
@@ -35,11 +35,14 @@ const CompassIcon = (): React.JSX.Element => (
   </View>
 );
 
-export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element => {
+export const RegisterScreen = ({ navigation }: RegisterScreenProps): React.JSX.Element => {
+  const { register } = useAuth();
   const { showAlert } = useAlert();
-  const [isPhoneMode, setIsPhoneMode] = useState<boolean>(false);
-  const [inputValue, setInputValue] = useState<string>('');
-  const {user} = useAuth();
+  
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const fadeValue = useSharedValue(0);
 
@@ -56,27 +59,34 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
     };
   });
 
-  const handleContinue = (): void => {
-    if (!inputValue.trim()) {
+  const handleRegister = async (): Promise<void> => {
+    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
       showAlert({
-        title: 'Authentication',
-        message: isPhoneMode ? 'Please enter your phone number!' : 'Please enter your email address!',
+        title: 'Registration',
+        message: 'Please fill in all fields!',
         type: 'error',
       });
       return;
     }
-    // Navigate to separate PasswordScreen passing user input details
-    navigation.navigate('Password', { identifier: inputValue, isPhone: isPhoneMode });
-  };
 
-  const handleGoogleSignIn = async (): Promise<void> => {
-    console.log(user)
-    showAlert({
-                    title: 'Google Sign-In',
-                    message: 'Google Sign-In is simulated!',
-                    type: 'info',
-                  })
-                }
+    if (password !== confirmPassword) {
+      showAlert({
+        title: 'Registration',
+        message: 'Passwords do not match!',
+        type: 'error',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await register(email.trim(), password);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -94,96 +104,76 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
               style={styles.keyboardView}
             >
-              <View style={styles.headerContainer}>
-                <CompassIcon />
-                <Text style={styles.title}>SnapStep</Text>
-                <Text style={styles.subtitle}>Your next journey begins here.</Text>
-              </View>
-
-              <View style={styles.formContainer}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder={isPhoneMode ? "Phone number" : "Email address"}
-                  placeholderTextColor={Colors.textMuted}
-                  value={inputValue}
-                  onChangeText={setInputValue}
-                  keyboardType={isPhoneMode ? "phone-pad" : "email-address"}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-
-                <Pressable 
-                  onPress={() => {
-                    setIsPhoneMode(!isPhoneMode);
-                    setInputValue('');
-                  }}
+              {/* Nút quay lại */}
+              <View style={styles.topBar}>
+                <Pressable
+                  onPress={() => navigation.goBack()}
                   style={({ pressed }) => [
-                    styles.toggleLink,
+                    styles.backButton,
                     pressed && { opacity: 0.7 }
                   ]}
                 >
-                  {isPhoneMode ? (
-                    <>
-                      <Feather name="mail" size={16} color={Colors.primary} style={styles.linkIcon} />
-                      <Text style={styles.toggleLinkText}>Use Email instead</Text> 
-                    </>
-                  ) : (
-                    <>
-                      <Feather name="smartphone" size={16} color={Colors.primary} style={styles.linkIcon} />
-                      <Text style={styles.toggleLinkText}>Use Phone Number instead</Text>
-                    </>
-                  )}
+                  <Feather name="arrow-left" size={24} color={Colors.white} />
                 </Pressable>
+              </View>
+
+              <View style={styles.headerContainer}>
+                <CompassIcon />
+                <Text style={styles.title}>Join SnapStep</Text>
+                <Text style={styles.subtitle}>Start sharing your journeys.</Text>
+              </View>
+
+              <View style={styles.formContainer}>
+                <CustomInput
+                  style={styles.textInput}
+                  placeholder="Email address"
+                  placeholderTextColor={Colors.textMuted}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                
+                <CustomInput
+                  style={styles.textInput}
+                  placeholder="Password"
+                  placeholderTextColor={Colors.textMuted}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                />
+
+                <CustomInput
+                  style={styles.textInput}
+                  placeholder="Confirm Password"
+                  placeholderTextColor={Colors.textMuted}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                />
 
                 <Pressable 
-                  onPress={handleContinue}
+                  onPress={handleRegister}
                   style={({ pressed }) => [
                     styles.primaryButton,
                     pressed && { opacity: 0.85 }
                   ]}
+                  disabled={isLoading}
                 >
                   <View style={styles.buttonContent}>
-                    <Text style={styles.primaryButtonText}>Continue</Text>
-                    <Feather 
-                      name="arrow-right" 
-                      size={18} 
-                      color={Colors.black} 
-                      style={styles.buttonIcon} 
-                    />
+                    <Text style={styles.primaryButtonText}>
+                      {isLoading ? 'Creating account...' : 'Create Account'}
+                    </Text>
                   </View>
                 </Pressable>
-
-                <View style={styles.dividerContainer}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>OR</Text>
-                  <View style={styles.dividerLine} />
-                </View>
-
-                <Pressable 
-                  style={({ pressed }) => [
-                    styles.googleButton,
-                    pressed && { opacity: 0.85 }
-                  ]}
-                  onPress={handleGoogleSignIn}
-                >
-                  <FontAwesome name="google" size={18} color={Colors.white} style={styles.googleIcon} />
-                  <Text style={styles.googleButtonText}>Sign in with Google</Text>
-                </Pressable>
-
-                <View style={styles.signUpContainer}>
-                  <Text style={styles.signUpText}>Don't have an account?</Text>
-                  <Pressable 
-                    style={({ pressed }) => pressed && { opacity: 0.7 }}
-                    onPress={() => navigation.navigate('Register')}
-                  >
-                    <Text style={styles.signUpLinkText}>Sign up</Text>
-                  </Pressable>
-                </View>
               </View>
 
               <View style={styles.footerContainer}>
                 <Text style={styles.footerText}>
-                  Route: SnapStep Login (Travel Background)
+                  Route: SnapStep Register
                 </Text>
               </View>
             </KeyboardAvoidingView>
@@ -212,9 +202,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 24,
   },
+  topBar: {
+    height: 48,
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   headerContainer: {
     alignItems: 'center',
-    marginTop: 60,
+    marginTop: 0,
   },
   compassOuter: {
     width: 64,
@@ -273,6 +276,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     marginTop: 8,
     textAlign: 'center',
+    paddingHorizontal: 10,
   },
   formContainer: {
     width: '100%',
@@ -293,20 +297,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     width: '100%',
   },
-  toggleLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginBottom: 24,
-  },
-  linkIcon: {
-    marginRight: 8,
-  },
-  toggleLinkText: {
-    color: Colors.primary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
   primaryButton: {
     height: 56,
     backgroundColor: Colors.primary,
@@ -319,73 +309,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 4,
-    marginBottom: 24,
+    marginTop: 8,
   },
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonIcon: {
-    marginLeft: 8,
-  },
   primaryButtonText: {
     color: Colors.black,
     fontSize: 16,
     fontWeight: '700',
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-    width: '100%',
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  dividerText: {
-    color: Colors.textMuted,
-    paddingHorizontal: 16,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
-  googleButton: {
-    height: 56,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 28,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-  },
-  googleIcon: {
-    marginRight: 12,
-  },
-  googleButtonText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  signUpContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  signUpText: {
-    color: Colors.white,
-    fontSize: 14,
-  },
-  signUpLinkText: {
-    color: Colors.primary,
-    fontWeight: '700',
-    fontSize: 14,
   },
   footerContainer: {
     alignItems: 'center',

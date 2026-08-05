@@ -76,7 +76,7 @@ export const SavedTripScreen = ({ route }: SavedTripScreenProps): React.JSX.Elem
       </View>
 
       <FlatList 
-        data={isLoading ? [1, 2, 3, 4, 5, 6] : mockSnaps}
+        data={isLoading ? ['1', '2', '3', '4', '5', '6'] : mockSnaps}
         numColumns={3}
         keyExtractor={(_, index) => index.toString()}
         showsVerticalScrollIndicator={false}

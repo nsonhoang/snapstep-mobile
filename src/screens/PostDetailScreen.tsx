@@ -75,12 +75,12 @@ export const PostDetailScreen = ({
   }).current;
 
   const renderItem = useCallback(({ item }: { item: ExplorePost }) => {
-    return user.id === item.userId ? (
+    return user?.uid === item.userId ? (
       <MyPhotoCard post={item} containerHeight={flatListHeight} />
     ) : (
       <FriendPhotoCard post={item} containerHeight={flatListHeight} />
     );
-  }, [user.id, flatListHeight]);
+  }, [user?.uid, flatListHeight]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
