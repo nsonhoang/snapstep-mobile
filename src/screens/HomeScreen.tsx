@@ -23,6 +23,7 @@ import { createLocation } from 'react-native-vision-camera-location';
 import { useLocation } from '../hooks/useLocation';
 import { ImageUtils } from '../utils/imageUtils';
 
+
 export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element => {
   const { hasPermission, requestPermission } = useCameraPermission();
  
@@ -42,6 +43,7 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
   // Dùng chung 1 hook useLocation duy nhất của chúng ta
   const { location, refetch } = useLocation();
  
+ 
 
   const fadeValue = useSharedValue(0);
 
@@ -57,6 +59,7 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
     // 2. Xin quyền Vị trí (dùng hook của chúng ta, nó có tích hợp sẵn xin quyền)
     refetch();
   }, []);
+
 
   
 

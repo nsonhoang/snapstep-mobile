@@ -43,6 +43,7 @@ export const RegisterScreen = ({ navigation }: RegisterScreenProps): React.JSX.E
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+ 
 
   const fadeValue = useSharedValue(0);
 
@@ -66,9 +67,28 @@ export const RegisterScreen = ({ navigation }: RegisterScreenProps): React.JSX.E
         message: 'Please fill in all fields!',
         type: 'error',
       });
-      return;
+
+      
     }
 
+     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if(!emailRegex.test(email)) {
+        showAlert({
+          title: 'Registration',
+          message: 'Please enter a valid email address!',
+          type: 'error',
+        });
+        return;
+      }
+
+      if(password.length < 6) {
+        showAlert({
+          title: 'Registration',
+          message: 'Password must be at least 6 characters long!',
+          type: 'error',
+        });
+        return;
+      }
     if (password !== confirmPassword) {
       showAlert({
         title: 'Registration',

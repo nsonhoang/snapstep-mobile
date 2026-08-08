@@ -10,6 +10,9 @@ import { ExploreFilterChips, FilterChipItem } from '../components/ExploreFilterC
 import { ExplorePostCard, ExplorePost } from '../components/ExplorePostCard';
 
 import { ExploreSkeleton } from '../components/ExploreSkeleton';
+import { collection, doc, getDoc, getDocs, getFirestore, serverTimestamp, setDoc } from '@react-native-firebase/firestore';
+import { useAuth } from '../navigation/AuthContext';
+import { User } from '../services/userService';
 
 const MOCK_FILTER_CHIPS: FilterChipItem[] = [
   { id: 'all', label: 'Tất cả' },
@@ -86,6 +89,36 @@ export const ExploreScreen = ({ navigation }: ExploreScreenProps): React.JSX.Ele
   const [selectedChipId, setSelectedChipId] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'feed'>('grid');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+   const db = getFirestore();
+   const { user } = useAuth();
+// create user 
+useEffect(  ()=>{
+const createUser =async()=>{
+  if(!user?.uid) return 
+ const userQuery = await getDoc(doc(db,"users",user?.uid))
+ if(!userQuery.exists()){
+  const newUser: User = {
+    firstName: user?.displayName || '',
+    lastName: "",
+    email: user?.email || '',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    ghostMode: false,
+    stats: {
+      conqueredProvincesCount: 0,
+      totalPhotosCount: 0,
+    },
+    conqueredProvinces:{}
+  }
+    await setDoc(doc(db, "users", user?.uid), newUser).then(
+              ()=>{
+                console.log("add user to database")
+              }
+            )
+ }
+}
+createUser();
+},[])
 
   // Initial load effect for Skeleton
   useEffect(() => {

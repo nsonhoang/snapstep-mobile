@@ -56,6 +56,8 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
     };
   });
 
+  
+
   const handleContinue = (): void => {
     if (!inputValue.trim()) {
       showAlert({
@@ -65,6 +67,17 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
       });
       return;
     }
+     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if(!emailRegex.test(inputValue)) {
+        showAlert({
+          title: 'Login',
+          message: 'Please enter a valid email address!',
+          type: 'error',
+        });
+        return;
+      }
+
+    
     // Navigate to separate PasswordScreen passing user input details
     navigation.navigate('Password', { identifier: inputValue, isPhone: isPhoneMode });
   };

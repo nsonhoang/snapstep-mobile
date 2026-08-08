@@ -43,3 +43,7 @@ yarn-error.*
 
 /tasks
 
+google-services.json
+
+GoogleService-Info.plist
+

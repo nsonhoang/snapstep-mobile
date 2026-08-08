@@ -14,19 +14,23 @@ import { useAuth } from '../navigation/AuthContext';
 import { Colors } from '../constants/Colors';
 import { VerifyEmailScreenProps } from '../navigation/types';
 import { sendEmailVerification, getAuth } from '@react-native-firebase/auth';
-import { useNavigation } from '@react-navigation/native';
 
 export const VerifyEmailScreen = ({ navigation }: VerifyEmailScreenProps): React.JSX.Element => {
   const { user, reloadUser, logout } = useAuth();
   const [isReloading, setIsReloading] = useState<boolean>(false);
   const [isResending, setIsResending] = useState<boolean>(false);
-  const nav = useNavigation();
+ 
+
 
     useEffect(() => {
     const intervalId = setInterval(() => {
       // Gọi hàm reloadUser chạy ngầm
-      reloadUser().catch(() => {});
-    }, 10000);
+      reloadUser()
+      .then( async () => {
+              
+      })
+      .catch(() => {});
+    }, 5000);
     return () => clearInterval(intervalId);
   }, []);
 
