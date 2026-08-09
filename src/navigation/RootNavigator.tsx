@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useAuth } from './AuthContext';
+import { useAuthStore } from '../stores/authStore';
 import { RootStackParamList } from './types';
 import { LoginScreen } from '../screens/LoginScreen';
 import { RegisterScreen } from '../screens/RegisterScreen';
@@ -23,7 +23,7 @@ import { VerifyEmailScreen } from '../screens/VerifyEmailScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const RootNavigator = (): React.JSX.Element => {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
 
 
 

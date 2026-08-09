@@ -22,7 +22,7 @@ import Animated, {
 import { LoginScreenProps } from '../navigation/types';
 import { Colors } from '../constants/Colors';
 import { useAlert } from '../components/AlertProvider';
-import { useAuth } from '../navigation/AuthContext';
+import { useAuthStore } from '../stores/authStore';
 
 const CompassIcon = (): React.JSX.Element => (
   <View style={styles.compassOuter}>
@@ -39,7 +39,7 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
   const { showAlert } = useAlert();
   const [isPhoneMode, setIsPhoneMode] = useState<boolean>(false);
   const [inputValue, setInputValue] = useState<string>('');
-  const {user} = useAuth();
+  const {user} = useAuthStore();
 
   const fadeValue = useSharedValue(0);
 

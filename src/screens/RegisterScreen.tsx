@@ -18,7 +18,7 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { useAuth } from '../navigation/AuthContext';
+import { useAuthStore } from '../stores/authStore';
 import { Colors } from '../constants/Colors';
 import { useAlert } from '../components/AlertProvider';
 import { CustomInput } from '../components/CustomInput';
@@ -36,7 +36,7 @@ const CompassIcon = (): React.JSX.Element => (
 );
 
 export const RegisterScreen = ({ navigation }: RegisterScreenProps): React.JSX.Element => {
-  const { register } = useAuth();
+  const { register } = useAuthStore();
   const { showAlert } = useAlert();
   
   const [email, setEmail] = useState<string>('');

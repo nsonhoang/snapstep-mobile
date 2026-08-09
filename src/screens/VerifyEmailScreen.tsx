@@ -10,13 +10,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useAuth } from '../navigation/AuthContext';
+import { useAuthStore } from '../stores/authStore';
 import { Colors } from '../constants/Colors';
 import { VerifyEmailScreenProps } from '../navigation/types';
 import { sendEmailVerification, getAuth } from '@react-native-firebase/auth';
 
 export const VerifyEmailScreen = ({ navigation }: VerifyEmailScreenProps): React.JSX.Element => {
-  const { user, reloadUser, logout } = useAuth();
+  const { user, reloadUser, logout } = useAuthStore();
   const [isReloading, setIsReloading] = useState<boolean>(false);
   const [isResending, setIsResending] = useState<boolean>(false);
  

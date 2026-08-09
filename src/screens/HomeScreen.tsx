@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Pressable, Text } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect, useRef } from "react";
+import { StyleSheet, View, Pressable, Text } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,47 +8,57 @@ import Animated, {
   Easing,
   FadeIn,
   FadeOut,
-} from 'react-native-reanimated';
-import { useAuth } from '../navigation/AuthContext';
-import { HomeScreenProps } from '../navigation/types';
-import { Colors } from '../constants/Colors';
-import { useAlert } from '../components/AlertProvider';
-import { CameraHeader } from '../components/CameraHeader';
+} from "react-native-reanimated";
+import { useAuthStore } from "../stores/authStore";
+import { HomeScreenProps } from "../navigation/types";
+import { Colors } from "../constants/Colors";
+import { useAlert } from "../components/AlertProvider";
+import { CameraHeader } from "../components/CameraHeader";
 
-import { CameraToggles } from '../components/CameraToggles';
-import { CaptureBar } from '../components/CaptureBar';
-import { PhotoPreviewModal } from '../components/PhotoPreviewModal';
-import { useCameraPermission, Camera, usePhotoOutput, CameraRef } from 'react-native-vision-camera';
-import { createLocation } from 'react-native-vision-camera-location';
-import { useLocation } from '../hooks/useLocation';
-import { ImageUtils } from '../utils/imageUtils';
+import { CameraToggles } from "../components/CameraToggles";
+import { CaptureBar } from "../components/CaptureBar";
+import { PhotoPreviewModal } from "../components/PhotoPreviewModal";
+import {
+  useCameraPermission,
+  Camera,
+  usePhotoOutput,
+  CameraRef,
+} from "react-native-vision-camera";
+import { createLocation } from "react-native-vision-camera-location";
+import { useLocation } from "../hooks/useLocation";
+import { ImageUtils } from "../utils/imageUtils";
+import { ImageService } from "../services/imageService";
 
-
-export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element => {
+export const HomeScreen = ({
+  navigation,
+}: HomeScreenProps): React.JSX.Element => {
   const { hasPermission, requestPermission } = useCameraPermission();
- 
-  const [facing, setFacing] = useState<'back' | 'front'>('back');
-  const photoOutput = usePhotoOutput();
-  const cameraRef = useRef< CameraRef>(null);
 
-  const { logout } = useAuth();
+  const [facing, setFacing] = useState<"back" | "front">("back");
+  const photoOutput = usePhotoOutput();
+  const cameraRef = useRef<CameraRef>(null);
+
+  const { logout, user } = useAuthStore();
   const { showAlert } = useAlert();
 
   const [isGhostModeOn, setIsGhostModeOn] = useState<boolean>(false);
-  const [selectedGroup, setSelectedGroup] = useState<string>('Besties 💖');
-  const [flashMode, setFlashMode] = useState<'on' | 'off' | 'auto'>('off');
-  const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | undefined>(undefined);
+  const [selectedGroup, setSelectedGroup] = useState<string>("Besties 💖");
+  const [flashMode, setFlashMode] = useState<"on" | "off" | "auto">("off");
+  const [capturedPhotoUri, setCapturedPhotoUri] = useState<string | undefined>(
+    undefined,
+  );
   const [isPreviewVisible, setIsPreviewVisible] = useState<boolean>(false);
 
   // Dùng chung 1 hook useLocation duy nhất của chúng ta
   const { location, refetch } = useLocation();
- 
- 
 
   const fadeValue = useSharedValue(0);
 
   useEffect(() => {
-    fadeValue.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.ease) });
+    fadeValue.value = withTiming(1, {
+      duration: 500,
+      easing: Easing.out(Easing.ease),
+    });
   }, [fadeValue]);
 
   useEffect(() => {
@@ -60,28 +70,27 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
     refetch();
   }, []);
 
-
-  
-
   const animatedContainerStyle = useAnimatedStyle(() => {
     return {
       opacity: fadeValue.value,
     };
   });
 
-  const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(null);
+  const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(
+    null,
+  );
 
   const handleTouch = async (e: any) => {
     const { locationX, locationY } = e.nativeEvent;
-    
+
     // Lưu tọa độ để vẽ vòng tròn
     setFocusPoint({ x: locationX, y: locationY });
-    
+
     try {
       // Yêu cầu Camera lấy nét tại điểm chạm (VisionCamera v5)
       await cameraRef.current?.focusTo({ x: locationX, y: locationY });
     } catch (err) {
-      console.log('Lỗi focus:', err);
+      console.log("Lỗi focus:", err);
     }
 
     // Ẩn vòng tròn sau 1.5 giây
@@ -92,99 +101,113 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
     }, 1500);
   };
 
-
   // Chuyển sang camera trước / sau
   const flipCamera = () => {
-    setFacing((prevFacing) => (prevFacing === 'back' ? 'front' : 'back'));
+    setFacing((prevFacing) => (prevFacing === "back" ? "front" : "back"));
   };
 
   // Bật flash
   const toggleFlash = () => {
     setFlashMode((current) => {
-      if (current === 'off') return 'on';
-      if (current === 'on') return 'auto';
-      return 'off';
+      if (current === "off") return "on";
+      if (current === "on") return "auto";
+      return "off";
     });
   };
 
   const handleBackPress = (): void => {
-    navigation.navigate('MainTabs', { screen: 'Explore' });
+    navigation.navigate("MainTabs", { screen: "Explore" });
   };
 
   const handleSettingsPress = (): void => {
     showAlert({
-      title: 'Cài đặt SnapStep',
-      message: 'Bạn có muốn mở Cài đặt hay Đăng xuất?',
-      type: 'info',
-      confirmText: 'Đăng xuất',
-      cancelText: 'Đóng',
+      title: "Cài đặt SnapStep",
+      message: "Bạn có muốn mở Cài đặt hay Đăng xuất?",
+      type: "info",
+      confirmText: "Đăng xuất",
+      cancelText: "Đóng",
       onConfirm: logout,
     });
   };
 
   const handleGroupPress = (): void => {
-    const groups = ['Besties 💖', 'Travel Buddies ✈️', 'Family 🏡', 'Solo Explorer 🧭'];
+    const groups = [
+      "Besties 💖",
+      "Travel Buddies ✈️",
+      "Family 🏡",
+      "Solo Explorer 🧭",
+    ];
     const currentIndex = groups.indexOf(selectedGroup);
     const nextGroup = groups[(currentIndex + 1) % groups.length];
     setSelectedGroup(nextGroup);
     showAlert({
-      title: 'Đã chuyển nhóm',
+      title: "Đã chuyển nhóm",
       message: `Đã đổi sang nhóm chia sẻ: ${nextGroup}`,
-      type: 'success',
+      type: "success",
     });
   };
 
   // Chụp ảnh
- const handleShutterPress = async () => {
-  if (cameraRef.current && photoOutput) {
-    try {
-      // 1. Chuyển đổi tọa độ của hook thành format của VisionCamera
-      const visionLocation = location 
-        ? createLocation(location.latitude, location.longitude) 
-        : undefined;
-      // 2. Gọi lệnh chụp và truyền location vào
-      const photo = await photoOutput.capturePhotoToFile({
-        flashMode: flashMode === 'auto' ? 'auto' : flashMode === 'on' ? 'on' : 'off',
-        location: visionLocation, // Bắt buộc truyền cái này thì ảnh mới có GPS
-      }, {});
-      
- 
-      if (photo?.filePath) {
-        console.log('Đã chụp ảnh gốc, đường dẫn:', photo.filePath);
-        
-        // Gọi ImageUtils để nén ảnh siêu tốc bằng C++
-        const compressedUri = await ImageUtils.compressImage(photo.filePath);
-        console.log('Đã nén ảnh thành công, đường dẫn mới:', compressedUri);
-        
-        // 3. LẤY THÔNG TIN LOCATION & TIMESTAMP TỪ BỨC ẢNH CHỤP XONG
-        console.log('--- THÔNG TIN ẢNH ---');
-        
-        // Bạn có thể lấy trực tiếp thời gian hiện tại lúc chụp 
-        const timestamp = new Date().toISOString(); 
-        console.log('Thời gian chụp:', timestamp);
-        // console.log('Toàn bộ siêu dữ liệu ảnh:', JSON.stringify(photo.metadata, null, 2));
-        
-        // Vị trí (Kinh độ/Vĩ độ/Tên đường) - Lấy từ hook đã lưu sẵn
-        console.log('Vị trí chụp:', location);
-        
-        // Lưu ảnh đã nén (compressedUri đã bao gồm file://) để hiển thị Preview
-        setCapturedPhotoUri(compressedUri);
-        setIsPreviewVisible(true);
+  const handleShutterPress = async () => {
+    if (cameraRef.current && photoOutput) {
+      try {
+        // 1. Chuyển đổi tọa độ của hook thành format của VisionCamera
+        const visionLocation = location
+          ? createLocation(location.latitude, location.longitude)
+          : undefined;
+        // 2. Gọi lệnh chụp và truyền location vào
+        const photo = await photoOutput.capturePhotoToFile(
+          {
+            flashMode:
+              flashMode === "auto" ? "auto" : flashMode === "on" ? "on" : "off",
+            location: visionLocation, // Bắt buộc truyền cái này thì ảnh mới có GPS
+          },
+          {},
+        );
+
+        if (photo?.filePath) {
+          console.log("Đã chụp ảnh gốc, đường dẫn:", photo.filePath);
+
+          // Gọi ImageUtils để nén ảnh siêu tốc bằng C++
+          const compressedUri = await ImageUtils.compressImage(photo.filePath);
+          console.log("Đã nén ảnh thành công, đường dẫn mới:", compressedUri);
+
+          // 3. LẤY THÔNG TIN LOCATION & TIMESTAMP TỪ BỨC ẢNH CHỤP XONG
+          console.log("--- THÔNG TIN ẢNH ---");
+
+          //lưu hình ảnh lên storage
+          if (user) {
+            const imageUrl = await ImageService.uploadImage(
+              compressedUri,
+              user?.uid,
+            );
+          }
+
+          const timestamp = new Date().toISOString();
+          console.log("Thời gian chụp:", timestamp);
+          // console.log('Toàn bộ siêu dữ liệu ảnh:', JSON.stringify(photo.metadata, null, 2));
+
+          // Vị trí (Kinh độ/Vĩ độ/Tên đường) - Lấy từ hook đã lưu sẵn
+          console.log("Vị trí chụp:", location);
+
+          // Lưu ảnh đã nén (compressedUri đã bao gồm file://) để hiển thị Preview
+          setCapturedPhotoUri(compressedUri);
+          setIsPreviewVisible(true);
+        }
+      } catch (error) {
+        console.error("Lỗi khi chụp ảnh:", error);
       }
-    } catch (error) {
-      console.error('Lỗi khi chụp ảnh:', error);
     }
-  }
-};
+  };
 
   const handleThumbnailPress = (): void => {
     if (capturedPhotoUri) {
       setIsPreviewVisible(true);
     } else {
       showAlert({
-        title: 'Thư viện hành trình',
-        message: 'Chưa có ảnh mới. Hãy bấm nút chụp để chụp bức ảnh đầu tiên!',
-        type: 'info',
+        title: "Thư viện hành trình",
+        message: "Chưa có ảnh mới. Hãy bấm nút chụp để chụp bức ảnh đầu tiên!",
+        type: "info",
       });
     }
   };
@@ -193,7 +216,9 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
   if (!hasPermission) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.infoText}>Chúng tôi cần quyền sử dụng Camera của bạn</Text>
+        <Text style={styles.infoText}>
+          Chúng tôi cần quyền sử dụng Camera của bạn
+        </Text>
         <Pressable style={styles.permissionBtn} onPress={requestPermission}>
           <Text style={styles.permissionBtnText}>Cấp Quyền</Text>
         </Pressable>
@@ -233,7 +258,7 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
                   {
                     left: focusPoint.x - 30, // trừ nửa width để tâm vào đúng điểm chạm
                     top: focusPoint.y - 30,
-                  }
+                  },
                 ]}
               />
             )}
@@ -248,11 +273,11 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
             onToggleGhostMode={() => {
               setIsGhostModeOn(!isGhostModeOn);
               showAlert({
-                title: 'Ghost Mode',
+                title: "Ghost Mode",
                 message: !isGhostModeOn
-                  ? 'Chế độ Ẩn danh (Ghost Mode) đã BẬT'
-                  : 'Chế độ Ẩn danh (Ghost Mode) đã TẮT',
-                type: !isGhostModeOn ? 'success' : 'info',
+                  ? "Chế độ Ẩn danh (Ghost Mode) đã BẬT"
+                  : "Chế độ Ẩn danh (Ghost Mode) đã TẮT",
+                type: !isGhostModeOn ? "success" : "info",
               });
             }}
           />
@@ -278,9 +303,9 @@ export const HomeScreen = ({ navigation }: HomeScreenProps): React.JSX.Element =
         onPost={() => {
           setIsPreviewVisible(false);
           showAlert({
-            title: 'Đăng ảnh thành công!',
-            message: 'Ảnh đã được chia sẻ lên Bản đồ Bước chân.',
-            type: 'success',
+            title: "Đăng ảnh thành công!",
+            message: "Ảnh đã được chia sẻ lên Bản đồ Bước chân.",
+            type: "success",
           });
         }}
       />
@@ -303,15 +328,15 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
     backgroundColor: Colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     gap: 16,
     paddingHorizontal: 20,
   },
   infoText: {
     color: Colors.white,
     fontSize: 15,
-    textAlign: 'center',
+    textAlign: "center",
   },
   permissionBtn: {
     backgroundColor: Colors.primary,
@@ -322,15 +347,15 @@ const styles = StyleSheet.create({
   permissionBtnText: {
     color: Colors.black,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   previewContainer: {
-    width: '100%',
+    width: "100%",
     aspectRatio: 3 / 4,
     borderRadius: 36,
     borderWidth: 2,
     borderColor: Colors.primary,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginTop: 8,
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 0 },
@@ -342,12 +367,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   focusIndicator: {
-    position: 'absolute',
+    position: "absolute",
     width: 60,
     height: 60,
     borderRadius: 30,
     borderWidth: 1.5,
-    borderColor: '#FFD700',
-    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    borderColor: "#FFD700",
+    backgroundColor: "rgba(255, 215, 0, 0.15)",
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -10,19 +10,20 @@ import {
   ImageBackground,
   TextInput,
   Pressable,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Feather } from "@expo/vector-icons";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   Easing,
-} from 'react-native-reanimated';
-import { useAuth } from '../navigation/AuthContext';
-import { PasswordScreenProps } from '../navigation/types';
-import { Colors } from '../constants/Colors';
-import { useAlert } from '../components/AlertProvider';
+} from "react-native-reanimated";
+
+import { PasswordScreenProps } from "../navigation/types";
+import { Colors } from "../constants/Colors";
+import { useAlert } from "../components/AlertProvider";
+import { useAuthStore } from "../stores/authStore";
 
 const CompassIcon = (): React.JSX.Element => (
   <View style={styles.compassOuter}>
@@ -35,11 +36,14 @@ const CompassIcon = (): React.JSX.Element => (
   </View>
 );
 
-export const PasswordScreen = ({ route, navigation }: PasswordScreenProps): React.JSX.Element => {
+export const PasswordScreen = ({
+  route,
+  navigation,
+}: PasswordScreenProps): React.JSX.Element => {
   const { identifier } = route.params;
-  const { login } = useAuth();
+  const { login } = useAuthStore();
   const { showAlert } = useAlert();
-  const [passwordValue, setPasswordValue] = useState<string>('');
+  const [passwordValue, setPasswordValue] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const fadeValue = useSharedValue(0);
@@ -60,13 +64,13 @@ export const PasswordScreen = ({ route, navigation }: PasswordScreenProps): Reac
   const handleLogin = async (): Promise<void> => {
     if (!passwordValue.trim()) {
       showAlert({
-        title: 'Authentication',
-        message: 'Please enter your password!',
-        type: 'error',
+        title: "Authentication",
+        message: "Please enter your password!",
+        type: "error",
       });
       return;
     }
-    
+
     setIsLoading(true);
     try {
       await login(identifier, passwordValue);
@@ -81,7 +85,7 @@ export const PasswordScreen = ({ route, navigation }: PasswordScreenProps): Reac
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
         <ImageBackground
-          source={require('../../assets/background.jpg')}
+          source={require("../../assets/background.jpg")}
           style={StyleSheet.absoluteFill}
           resizeMode="cover"
         />
@@ -90,7 +94,7 @@ export const PasswordScreen = ({ route, navigation }: PasswordScreenProps): Reac
         <Animated.View style={[styles.contentContainer, animatedStyle]}>
           <SafeAreaView style={styles.safeArea}>
             <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
               style={styles.keyboardView}
             >
               {/* Back Button */}
@@ -99,7 +103,7 @@ export const PasswordScreen = ({ route, navigation }: PasswordScreenProps): Reac
                   onPress={() => navigation.goBack()}
                   style={({ pressed }) => [
                     styles.backButton,
-                    pressed && { opacity: 0.7 }
+                    pressed && { opacity: 0.7 },
                   ]}
                 >
                   <Feather name="arrow-left" size={24} color={Colors.white} />
@@ -109,7 +113,9 @@ export const PasswordScreen = ({ route, navigation }: PasswordScreenProps): Reac
               <View style={styles.headerContainer}>
                 <CompassIcon />
                 <Text style={styles.title}>Welcome back</Text>
-                <Text style={styles.subtitle}>Enter password for {identifier}</Text>
+                <Text style={styles.subtitle}>
+                  Enter password for {identifier}
+                </Text>
               </View>
 
               <View style={styles.formContainer}>
@@ -125,33 +131,36 @@ export const PasswordScreen = ({ route, navigation }: PasswordScreenProps): Reac
                   autoFocus={true}
                 />
 
-                <Pressable 
-                  onPress={() => showAlert({
-                    title: 'Reset Password',
-                    message: 'Reset password flow is simulated!',
-                    type: 'info',
-                  })}
+                <Pressable
+                  onPress={() =>
+                    showAlert({
+                      title: "Reset Password",
+                      message: "Reset password flow is simulated!",
+                      type: "info",
+                    })
+                  }
                   style={({ pressed }) => [
                     styles.forgotPasswordLink,
-                    pressed && { opacity: 0.7 }
+                    pressed && { opacity: 0.7 },
                   ]}
                 >
-                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                  <Text style={styles.forgotPasswordText}>
+                    Forgot Password?
+                  </Text>
                 </Pressable>
 
-                <Pressable 
+                <Pressable
                   onPress={handleLogin}
                   style={({ pressed }) => [
                     styles.primaryButton,
-                    pressed && { opacity: 0.85 }
+                    pressed && { opacity: 0.85 },
                   ]}
                   disabled={isLoading}
                 >
                   <View style={styles.buttonContent}>
                     <Text style={styles.primaryButtonText}>
-                      {isLoading ? 'Signing in...' : 'Log In'}
+                      {isLoading ? "Signing in..." : "Log In"}
                     </Text>
-                  
                   </View>
                 </Pressable>
               </View>
@@ -174,7 +183,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   overlay: {
-    backgroundColor: 'rgba(10, 15, 25, 0.65)',
+    backgroundColor: "rgba(10, 15, 25, 0.65)",
   },
   contentContainer: {
     flex: 1,
@@ -184,51 +193,51 @@ const styles = StyleSheet.create({
   },
   keyboardView: {
     flex: 1,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
     paddingHorizontal: 24,
   },
   topBar: {
     height: 48,
-    justifyContent: 'center',
+    justifyContent: "center",
     marginTop: 10,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
   },
   compassOuter: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(112, 194, 180, 0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(112, 194, 180, 0.12)",
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1.5,
-    borderColor: 'rgba(112, 194, 180, 0.25)',
+    borderColor: "rgba(112, 194, 180, 0.25)",
     marginBottom: 20,
   },
   compassInner: {
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: 'rgba(112, 194, 180, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(112, 194, 180, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   needleContainer: {
     width: 12,
     height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    transform: [{ rotate: '45deg' }],
+    justifyContent: "center",
+    alignItems: "center",
+    transform: [{ rotate: "45deg" }],
   },
   needleNorth: {
     width: 0,
@@ -236,8 +245,8 @@ const styles = StyleSheet.create({
     borderLeftWidth: 6,
     borderRightWidth: 6,
     borderBottomWidth: 16,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
     borderBottomColor: Colors.primary,
   },
   needleSouth: {
@@ -246,13 +255,13 @@ const styles = StyleSheet.create({
     borderLeftWidth: 6,
     borderRightWidth: 6,
     borderTopWidth: 16,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
     borderTopColor: Colors.white,
   },
   title: {
     fontSize: 40,
-    fontWeight: '900',
+    fontWeight: "900",
     color: Colors.white,
     letterSpacing: 1.5,
   },
@@ -260,16 +269,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textMuted,
     marginTop: 8,
-    textAlign: 'center',
+    textAlign: "center",
     paddingHorizontal: 10,
   },
   formContainer: {
-    width: '100%',
-    backgroundColor: 'rgba(15, 15, 15, 0.85)',
+    width: "100%",
+    backgroundColor: "rgba(15, 15, 15, 0.85)",
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   textInput: {
     height: 56,
@@ -278,26 +287,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
     color: Colors.black,
-    fontWeight: '500',
+    fontWeight: "500",
     marginBottom: 16,
-    width: '100%',
+    width: "100%",
   },
   forgotPasswordLink: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     marginBottom: 24,
   },
   forgotPasswordText: {
     color: Colors.primary,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   primaryButton: {
     height: 56,
     backgroundColor: Colors.primary,
     borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
     shadowColor: Colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -305,9 +314,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonIcon: {
     marginLeft: 8,
@@ -315,10 +324,10 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: Colors.black,
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   footerContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 20,
   },
   footerText: {

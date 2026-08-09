@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../constants/Colors';
-import { useAuth } from '../navigation/AuthContext';
+import { useAuthStore } from '../stores/authStore';
 import { ProfileHeader } from '../components/ProfileHeader';
 import { ProfileStats } from '../components/ProfileStats';
 import { MilestoneList } from '../components/MilestoneList';
@@ -15,7 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 
 export const ProfileScreen = (): React.JSX.Element => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { logout } = useAuth();
+  const { logout } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {

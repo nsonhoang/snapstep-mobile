@@ -16,7 +16,7 @@ import { Colors } from '../constants/Colors';
 import { PostDetailScreenProps } from '../navigation/types';
 import { useAlert } from '../components/AlertProvider';
 import { ExplorePost } from '../components/ExplorePostCard';
-import { useAuth } from '../navigation/AuthContext';
+import { useAuthStore } from '../stores/authStore';
 import { MyPhotoCard } from '../components/MyPhotoCard';
 import { FriendPhotoCard } from '../components/FriendPhotoCard';
 import { PostDetailHeader } from '../components/PostDetailHeader';
@@ -26,7 +26,7 @@ export const PostDetailScreen = ({
 }: PostDetailScreenProps): React.JSX.Element => {
   const { post, posts: postsParam } = route.params;
   const { showAlert } = useAlert();
-  const { user } = useAuth();
+  const { user } = useAuthStore();
   
   const [flatListHeight, setFlatListHeight] = useState<number>(0);
 

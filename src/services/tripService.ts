@@ -1,4 +1,17 @@
-import { FieldValue, Timestamp } from "@react-native-firebase/firestore";
+import {
+  FieldValue,
+  Timestamp,
+  getFirestore,
+  collection,
+  query,
+  orderBy,
+  limit,
+  getDocs,
+  startAfter,
+  where,
+  DocumentSnapshot,
+  addDoc,
+} from "@react-native-firebase/firestore";
 
 export interface Trip {
   userId: string;
@@ -6,13 +19,8 @@ export interface Trip {
   like: number;
   love: number;
   hate: number;
-  likeUser: Set<string>; // user id đã like
-  loveUser: Set<string>;
-  hateUser: Set<string>;
   description?: string;
   coverImageUrl?: string;
-  //   member:{} tương lai
-  // detail : Record<string,string> // key: là timestamp
   details: TripDetail[];
   postIds: string[];
   status: TripStatus;
@@ -20,11 +28,96 @@ export interface Trip {
   updatedAt: Timestamp | FieldValue;
 }
 
-type TripStatus = "planning" | "ongoing" | "completed";
+export interface TripWithId extends Trip {
+  id: string; // Thêm ID document
+}
+
+type TripStatus = "planning" | "ongoing" | "completed" | "another" | "cancle";
 
 export interface TripDetail {
-  //   provinceCode: string; tương lai nếu muốn chia sẻ hành trình này cho người khác
-  //   locationName: string; tương lai nếu muốn chia sẻ hành trình này cho người khác
   time: Timestamp;
   describe: string;
 }
+
+export const TripService = {
+  // Hàm tải lần đầu
+  getTrips: async (
+    limitCount: number,
+    userId?: string,
+  ): Promise<{ trips: TripWithId[]; lastDoc: DocumentSnapshot | null }> => {
+    const db = getFirestore();
+    const tripsRef = collection(db, "trips");
+    let q;
+
+    if (userId) {
+      q = query(
+        tripsRef,
+        where("userId", "==", userId),
+        orderBy("createdAt", "desc"),
+        limit(limitCount),
+      );
+    } else {
+      q = query(tripsRef, orderBy("createdAt", "desc"), limit(limitCount));
+    }
+
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return { trips: [], lastDoc: null };
+
+    const trips = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as TripWithId[];
+
+    return { trips, lastDoc: snapshot.docs[snapshot.docs.length - 1] };
+  },
+
+  // Hàm tải thêm khi lướt (có startAfter)
+  getMoreTrips: async (
+    limitCount: number,
+    lastDocSnap: DocumentSnapshot,
+    userId?: string,
+  ): Promise<{ trips: TripWithId[]; lastDoc: DocumentSnapshot | null }> => {
+    const db = getFirestore();
+    const tripsRef = collection(db, "trips");
+    let q;
+
+    if (userId) {
+      q = query(
+        tripsRef,
+        where("userId", "==", userId),
+        orderBy("createdAt", "desc"),
+        startAfter(lastDocSnap),
+        limit(limitCount),
+      );
+    } else {
+      q = query(
+        tripsRef,
+        orderBy("createdAt", "desc"),
+        startAfter(lastDocSnap),
+        limit(limitCount),
+      );
+    }
+
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return { trips: [], lastDoc: null };
+
+    const trips = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as TripWithId[];
+
+    return { trips, lastDoc: snapshot.docs[snapshot.docs.length - 1] };
+  },
+
+  createTrip: async (trip: Trip) => {
+    const db = getFirestore();
+    const tripsRef = collection(db, "trips");
+    await addDoc(tripsRef, trip)
+      .then(() => {
+        console.log("Trip created successfully");
+      })
+      .catch((error) => {
+        console.error("Error creating trip:", error);
+      });
+  },
+};
