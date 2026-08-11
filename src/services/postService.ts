@@ -16,10 +16,10 @@ import {
 export interface Post {
   authorId: string; // sẽ gán băng userId
   imageUrl: string; //
-  thumbnailUrl: string; // Dùng vẽ Marker trên Map cho nhẹ
-  caption: string;
-  tripId?: string;
-  location: Location;
+  // thumbnailUrl: string; // Dùng vẽ Marker trên Map cho nhẹ
+  caption?: string;
+  tripId: string;
+  location: Location | null;
   createdAt: Timestamp | FieldValue;
   updateAt: Timestamp | FieldValue;
 }
@@ -31,16 +31,17 @@ export interface PostWithId extends Post {
 export interface Location {
   latitude: number;
   longitude: number;
-  provinceCode: string;
-  provinceName: string;
-  placeName: string;
+  // provinceCode: string | null;
+  // provinceName: string | null;
+  // placeName: string | null;
+  address: string | null;
 }
 
 export const PostService = {
   // Hàm tải lần đầu
   getPosts: async (
     limitCount: number,
-    authorId?: string
+    authorId?: string,
   ): Promise<{ posts: PostWithId[]; lastDoc: DocumentSnapshot | null }> => {
     const db = getFirestore();
     const postsRef = collection(db, "posts");
@@ -51,7 +52,7 @@ export const PostService = {
         postsRef,
         where("authorId", "==", authorId),
         orderBy("createdAt", "desc"),
-        limit(limitCount)
+        limit(limitCount),
       );
     } else {
       q = query(postsRef, orderBy("createdAt", "desc"), limit(limitCount));
@@ -72,7 +73,7 @@ export const PostService = {
   getMorePosts: async (
     limitCount: number,
     lastDocSnap: DocumentSnapshot,
-    authorId?: string
+    authorId?: string,
   ): Promise<{ posts: PostWithId[]; lastDoc: DocumentSnapshot | null }> => {
     const db = getFirestore();
     const postsRef = collection(db, "posts");
@@ -84,14 +85,14 @@ export const PostService = {
         where("authorId", "==", authorId),
         orderBy("createdAt", "desc"),
         startAfter(lastDocSnap),
-        limit(limitCount)
+        limit(limitCount),
       );
     } else {
       q = query(
         postsRef,
         orderBy("createdAt", "desc"),
         startAfter(lastDocSnap),
-        limit(limitCount)
+        limit(limitCount),
       );
     }
 

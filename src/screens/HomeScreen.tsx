@@ -14,6 +14,7 @@ import { HomeScreenProps } from "../navigation/types";
 import { Colors } from "../constants/Colors";
 import { useAlert } from "../components/AlertProvider";
 import { CameraHeader } from "../components/CameraHeader";
+import { Location } from "../services/postService";
 
 import { CameraToggles } from "../components/CameraToggles";
 import { CaptureBar } from "../components/CaptureBar";
@@ -28,19 +29,23 @@ import { createLocation } from "react-native-vision-camera-location";
 import { useLocation } from "../hooks/useLocation";
 import { ImageUtils } from "../utils/imageUtils";
 import { ImageService } from "../services/imageService";
+import { useTripStore } from "../stores/tripStore";
+import { Post, PostService } from "../services/postService";
+import { serverTimestamp } from "@react-native-firebase/firestore";
 
 export const HomeScreen = ({
   navigation,
 }: HomeScreenProps): React.JSX.Element => {
   const { hasPermission, requestPermission } = useCameraPermission();
 
-  const [facing, setFacing] = useState<"back" | "front">("back");
   const photoOutput = usePhotoOutput();
   const cameraRef = useRef<CameraRef>(null);
 
   const { logout, user } = useAuthStore();
+  const { selectedTripId } = useTripStore();
   const { showAlert } = useAlert();
 
+  const [facing, setFacing] = useState<"back" | "front">("back");
   const [isGhostModeOn, setIsGhostModeOn] = useState<boolean>(false);
   const [selectedGroup, setSelectedGroup] = useState<string>("Besties 💖");
   const [flashMode, setFlashMode] = useState<"on" | "off" | "auto">("off");
@@ -48,9 +53,17 @@ export const HomeScreen = ({
     undefined,
   );
   const [isPreviewVisible, setIsPreviewVisible] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showCustomToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 2500);
+  };
 
   // Dùng chung 1 hook useLocation duy nhất của chúng ta
-  const { location, refetch } = useLocation();
+  const { location, errorMsg, isLoading, refetch } = useLocation();
 
   const fadeValue = useSharedValue(0);
 
@@ -169,19 +182,9 @@ export const HomeScreen = ({
           console.log("Đã chụp ảnh gốc, đường dẫn:", photo.filePath);
 
           // Gọi ImageUtils để nén ảnh siêu tốc bằng C++
-          const compressedUri = await ImageUtils.compressImage(photo.filePath);
-          console.log("Đã nén ảnh thành công, đường dẫn mới:", compressedUri);
 
           // 3. LẤY THÔNG TIN LOCATION & TIMESTAMP TỪ BỨC ẢNH CHỤP XONG
           console.log("--- THÔNG TIN ẢNH ---");
-
-          //lưu hình ảnh lên storage
-          if (user) {
-            const imageUrl = await ImageService.uploadImage(
-              compressedUri,
-              user?.uid,
-            );
-          }
 
           const timestamp = new Date().toISOString();
           console.log("Thời gian chụp:", timestamp);
@@ -191,12 +194,56 @@ export const HomeScreen = ({
           console.log("Vị trí chụp:", location);
 
           // Lưu ảnh đã nén (compressedUri đã bao gồm file://) để hiển thị Preview
-          setCapturedPhotoUri(compressedUri);
+          setCapturedPhotoUri(`file://${photo.filePath}`);
           setIsPreviewVisible(true);
         }
       } catch (error) {
         console.error("Lỗi khi chụp ảnh:", error);
       }
+    }
+  };
+
+  const handlePostPhoto = async (captionText: string): Promise<void> => {
+    try {
+      // lưu hình ảnh lên storage
+      if (user && capturedPhotoUri) {
+        const rawPath = capturedPhotoUri?.replace("file://", "");
+        const compressedUri = await ImageUtils.compressImage(rawPath);
+        console.log("Đã nén ảnh trước khi Up:", compressedUri);
+        const imageUrl = await ImageService.uploadImage(
+          compressedUri,
+          user?.uid,
+        );
+        console.log("URL của ảnh trên Storage:", imageUrl);
+        if (imageUrl && selectedTripId) {
+          const position: Location = {
+            address: location?.address || "Vị trí không xác định",
+            longitude: location?.longitude || 0,
+            latitude: location?.latitude || 0,
+          };
+
+          const post: Post = {
+            authorId: user.uid,
+            imageUrl,
+            caption: captionText,
+            tripId: selectedTripId,
+            location: position,
+            createdAt: serverTimestamp(),
+            updateAt: serverTimestamp(),
+          };
+          await PostService.createPost(post);
+
+          showCustomToast("Đăng bài thành công!");
+        }
+        setIsPreviewVisible(false);
+      }
+    } catch (error) {
+      console.log(error);
+      showAlert({
+        title: "Lỗi",
+        message: "Không thể tạo bài viết.",
+        type: "error",
+      });
     }
   };
 
@@ -300,15 +347,19 @@ export const HomeScreen = ({
           setCapturedPhotoUri(undefined);
           setIsPreviewVisible(false);
         }}
-        onPost={() => {
-          setIsPreviewVisible(false);
-          showAlert({
-            title: "Đăng ảnh thành công!",
-            message: "Ảnh đã được chia sẻ lên Bản đồ Bước chân.",
-            type: "success",
-          });
-        }}
+        onPost={handlePostPhoto}
       />
+
+      {/* Hiệu ứng Toast chữ nổi */}
+      {toastMessage && (
+        <Animated.View
+          entering={FadeIn.duration(300)}
+          exiting={FadeOut.duration(300)}
+          style={styles.toastContainer}
+        >
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </Animated.View>
+      )}
     </View>
   );
 };
@@ -374,5 +425,26 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#FFD700",
     backgroundColor: "rgba(255, 215, 0, 0.15)",
+  },
+  toastContainer: {
+    position: "absolute",
+    bottom: 120, // Hiển thị phía dưới để dễ nhìn hơn
+    alignSelf: "center",
+    backgroundColor: Colors.white, // Đậm hơn
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 30, // Bo góc tròn hơn
+    zIndex: 9999,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 6,
+  },
+  toastText: {
+    color: Colors.black,
+    fontSize: 16, // Chữ to hơn
+    fontWeight: "700", // Đậm hơn
+    textAlign: "center",
   },
 });

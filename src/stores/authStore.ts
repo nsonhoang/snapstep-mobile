@@ -7,6 +7,7 @@ import {
   User,
 } from "@react-native-firebase/auth";
 import { create } from "zustand";
+import { useTripStore } from "./tripStore";
 
 interface AuthContextType {
   user: User | null;
@@ -56,6 +57,12 @@ export const useAuthStore = create<AuthContextType>((set, get) => ({
       });
   },
   logout: async () => {
+    useTripStore.setState({
+      trips: [],
+      selectedTripId: null,
+      lastDoc: null,
+    });
+
     await getAuth().signOut();
     console.log("User logged out!");
   },

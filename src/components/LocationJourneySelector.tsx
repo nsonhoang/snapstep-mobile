@@ -15,33 +15,33 @@ import { useTripStore } from "../stores/tripStore";
 import { useAuthStore } from "../stores/authStore";
 
 export interface LocationJourneySelectorProps {
-  selectedJourney?: string;
-  onSelectJourney?: (journey: string) => void;
+  selectedTripId?: string | null;
+  onSelectTripId?: (id: string) => void;
 }
 
 export const LocationJourneySelector = ({
-  selectedJourney = "Hà Giang, Việt Nam 🏔️",
-  onSelectJourney,
+  selectedTripId,
+  onSelectTripId,
 }: LocationJourneySelectorProps): React.JSX.Element => {
-  const [currentJourney, setCurrentJourney] = useState<string>(selectedJourney);
   const { trips, fetchTrips } = useTripStore();
   const { user } = useAuthStore();
 
   const [isMenuVisible, setIsMenuVisible] = useState<boolean>(false);
-  const [showCreateTripModal, setShowCreateTripModal] =
-    useState<boolean>(false);
+  const [showCreateTripModal, setShowCreateTripModal] = useState<boolean>(false);
 
   useEffect(() => {
     if (user?.uid && trips.length === 0) {
       fetchTrips(user.uid);
     }
-  }, [user]);
+  }, [user?.uid]);
 
-  const handleSelect = (journey: string, id: string) => {
-    setCurrentJourney(journey);
-    onSelectJourney?.(journey);
+  const handleSelect = (id: string) => {
+    onSelectTripId?.(id);
     setIsMenuVisible(false);
   };
+
+  const selectedTrip = trips.find((t) => t.id === selectedTripId);
+  const displayTitle = selectedTrip?.title || "Chọn chuyến đi";
 
   const handleAddNewJourney = () => {
     // setIsMenuVisible(false);
@@ -59,7 +59,7 @@ export const LocationJourneySelector = ({
         >
           <Ionicons name="location-sharp" size={15} color={Colors.primary} />
           <Text style={styles.locationText} numberOfLines={1}>
-            {currentJourney}
+            {displayTitle}
           </Text>
           <Feather name="chevron-down" size={14} color={Colors.white} />
         </Pressable>
@@ -97,10 +97,10 @@ export const LocationJourneySelector = ({
               data={trips}
               keyExtractor={(item, index) => `${item}-${index}`}
               renderItem={({ item }) => {
-                const isSelected = item.id === currentJourney;
+                const isSelected = item.id === selectedTripId;
                 return (
                   <Pressable
-                    onPress={() => handleSelect(item.title, item.id)}
+                    onPress={() => handleSelect(item.id)}
                     style={[
                       styles.journeyItem,
                       isSelected && styles.journeyItemSelected,

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -11,6 +11,7 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
+  ActivityIndicator,
 } from "react-native";
 import * as MediaLibrary from "expo-media-library";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -21,27 +22,29 @@ import { CustomInput } from "./CustomInput";
 import { useAlert } from "../components/AlertProvider";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { useKeyboardHeight } from "../hooks/useKeyboardHeight";
+import { useTripStore } from "../stores/tripStore";
+import { useAuthStore } from "../stores/authStore";
 
 export interface PhotoPreviewModalProps {
   visible: boolean;
   photoUri?: string;
   onClose: () => void;
   onRetake: () => void;
-  onPost?: () => void;
+  onPost?: (captionText: string) => Promise<void>;
 }
 
 export const PhotoPreviewModal = ({
   visible,
   photoUri,
   onClose,
-  onRetake,
   onPost,
 }: PhotoPreviewModalProps): React.JSX.Element => {
+  const { trips, fetchTrips, selectedTripId, setSelectedTripId } =
+    useTripStore();
+  const { user } = useAuthStore();
   const [shareToMap, setShareToMap] = useState<boolean>(true);
-  const [selectedJourney, setSelectedJourney] = useState<string>(
-    "Hà Giang, Việt Nam 🏔️",
-  );
   const [caption, setCaption] = useState<string>("");
+  const [isUploading, setIsUploading] = useState<boolean>(false);
 
   const keyboardHeight = useKeyboardHeight();
 
@@ -50,6 +53,14 @@ export const PhotoPreviewModal = ({
       paddingBottom: keyboardHeight.value, // Dùng value của SharedValue
     };
   });
+
+  console.log("selectedTripId", selectedTripId);
+
+  useEffect(() => {
+    if (trips?.length === 0) {
+      fetchTrips(user?.uid);
+    }
+  }, [user?.uid]);
 
   const { showAlert } = useAlert();
 
@@ -85,6 +96,13 @@ export const PhotoPreviewModal = ({
     }
   };
 
+  const handlePostPhoto = async () => {
+    setIsUploading(true);
+    await onPost?.(caption);
+    setIsUploading(false);
+    setCaption("");
+  };
+
   return (
     <Modal
       visible={visible}
@@ -93,7 +111,7 @@ export const PhotoPreviewModal = ({
       onRequestClose={onClose}
     >
       <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-        <SafeAreaView style={styles.modalContainer}>
+        <SafeAreaView style={styles.modalContainer} pointerEvents={isUploading ? "none" : "auto"}>
           {/* Header Navigation */}
           <View style={styles.header}>
             <Pressable onPress={onClose} style={styles.iconButton} hitSlop={8}>
@@ -122,8 +140,10 @@ export const PhotoPreviewModal = ({
               {/* Gắn thẻ địa điểm (Bên trên ảnh) */}
               <View style={styles.locationBadgeWrapper}>
                 <LocationJourneySelector
-                  selectedJourney={selectedJourney}
-                  onSelectJourney={setSelectedJourney}
+                  selectedTripId={selectedTripId}
+                  onSelectTripId={(newTripId) => {
+                    setSelectedTripId(newTripId); // Lưu ngầm xuống AsyncStorage cho lần sau
+                  }}
                 />
               </View>
 
@@ -181,11 +201,18 @@ export const PhotoPreviewModal = ({
             </Pressable>
 
             <Pressable
-              onPress={onPost || onClose}
-              style={[styles.actionButton, styles.postButton]}
+              onPress={handlePostPhoto}
+              style={[styles.actionButton, styles.postButton, isUploading && { opacity: 0.7 }]}
+              disabled={isUploading}
             >
-              <Feather name="send" size={18} color={Colors.black} />
-              <Text style={styles.postText}>Đăng ảnh</Text>
+              {isUploading ? (
+                <ActivityIndicator color={Colors.black} size="small" />
+              ) : (
+                <Feather name="send" size={18} color={Colors.black} />
+              )}
+              <Text style={styles.postText}>
+                {isUploading ? "Đang tải..." : "Đăng ảnh"}
+              </Text>
             </Pressable>
           </View>
         </SafeAreaView>
