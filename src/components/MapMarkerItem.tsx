@@ -1,21 +1,24 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Image } from 'react-native';
-import { Marker } from 'react-native-maps';
-import { Colors } from '../constants/Colors';
-import { ExplorePost } from './ExplorePostCard';
+import React, { useState } from "react";
+import { StyleSheet, View, Image } from "react-native";
+import { Marker } from "react-native-maps";
+import { Colors } from "../constants/Colors";
+import { PostWithId } from "../services/postService";
 
 interface MapMarkerItemProps {
-  post: ExplorePost & { latitude: number; longitude: number };
+  post: PostWithId;
   onPress: () => void;
 }
 
-export const MapMarkerItem = ({ post, onPress }: MapMarkerItemProps): React.JSX.Element => {
+export const MapMarkerItem = ({
+  post,
+  onPress,
+}: MapMarkerItemProps): React.JSX.Element => {
   const [loaded, setLoaded] = useState(false);
 
   return (
     <Marker
       key={`${post.id}-${loaded}`}
-      coordinate={{ latitude: post.latitude, longitude: post.longitude }}
+      coordinate={{ latitude: post.location?.latitude || 0, longitude: post.location?.longitude || 0 }}
       onPress={onPress}
     >
       <View style={styles.customMarker}>
@@ -35,8 +38,8 @@ export const MapMarkerItem = ({ post, onPress }: MapMarkerItemProps): React.JSX.
 
 const styles = StyleSheet.create({
   customMarker: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     width: 70,
     height: 80,
   },
@@ -47,8 +50,8 @@ const styles = StyleSheet.create({
     borderWidth: 2.5,
     borderColor: Colors.primary,
     backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   markerImage: {
     width: 55,
@@ -58,15 +61,15 @@ const styles = StyleSheet.create({
   markerPointer: {
     width: 0,
     height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
+    backgroundColor: "transparent",
+    borderStyle: "solid",
     borderLeftWidth: 8,
     borderRightWidth: 8,
     borderTopWidth: 10,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
     borderTopColor: Colors.primary,
-    alignSelf: 'center',
+    alignSelf: "center",
     marginTop: -2.5,
   },
 });

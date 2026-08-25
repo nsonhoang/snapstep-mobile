@@ -230,6 +230,10 @@ export const HomeScreen = ({
             location: position,
             createdAt: serverTimestamp(),
             updateAt: serverTimestamp(),
+            like: 0,
+            love: 0,
+            hate: 0,
+            haha: 0,
           };
           await PostService.createPost(post);
 

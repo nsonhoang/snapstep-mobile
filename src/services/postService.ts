@@ -11,12 +11,21 @@ import {
   where,
   DocumentSnapshot,
   addDoc,
+  deleteDoc,
+  doc,
+  getDoc,
+  onSnapshot,
 } from "@react-native-firebase/firestore";
+import { ImageService } from "./imageService";
 
 export interface Post {
   authorId: string; // sẽ gán băng userId
   imageUrl: string; //
   // thumbnailUrl: string; // Dùng vẽ Marker trên Map cho nhẹ
+  like: number;
+  love: number;
+  hate: number;
+  haha: number;
   caption?: string;
   tripId: string;
   location: Location | null;
@@ -38,6 +47,50 @@ export interface Location {
 }
 
 export const PostService = {
+  // Lắng nghe Realtime danh sách Post với onSnapshot
+  subscribeToPosts: (
+    limitCount: number,
+    authorId: string | undefined,
+    onUpdate: (posts: PostWithId[]) => void,
+  ) => {
+    const db = getFirestore();
+    const postsRef = collection(db, "posts");
+    let q;
+
+    if (authorId) {
+      q = query(
+        postsRef,
+        where("authorId", "==", authorId),
+        orderBy("createdAt", "desc"),
+        limit(limitCount),
+      );
+    } else {
+      q = query(postsRef, orderBy("createdAt", "desc"), limit(limitCount));
+    }
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        if (snapshot.empty) {
+          onUpdate([]);
+          return;
+        }
+
+        const posts = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as PostWithId[];
+
+        onUpdate(posts);
+      },
+      (error) => {
+        console.error("Lỗi Realtime Posts:", error);
+      },
+    );
+
+    return unsubscribe;
+  },
+
   // Hàm tải lần đầu
   getPosts: async (
     limitCount: number,
@@ -117,5 +170,23 @@ export const PostService = {
       .catch((error) => {
         console.error("Error creating post:", error);
       });
+  },
+
+  deletePost: async (id: string) => {
+    const db = getFirestore();
+    const postsRef = collection(db, "posts");
+    const post = await getDoc(doc(postsRef, id));
+    if (post.exists()) {
+      const imageUrl = post.data().imageUrl;
+      await deleteDoc(doc(postsRef, id))
+        .then(() => {
+          console.log("Post deleted successfully");
+          // xóa hình ảnh khỏi storage
+          ImageService.deleteImage(imageUrl);
+        })
+        .catch((error) => {
+          console.error("Error deleting post:", error);
+        });
+    }
   },
 };

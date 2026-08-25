@@ -1,38 +1,43 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { StyleSheet, View, Text, Image, Pressable } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../constants/Colors';
-import { ExplorePost } from './ExplorePostCard';
-import { FloatingEmoji, FloatingItem } from './FloatingEmoji';
-import { useAlert } from './AlertProvider';
-import { CommentInputBar } from './CommentInputBar';
-import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
+import React, { useState, useCallback, useEffect } from "react";
+import { StyleSheet, View, Text, Image, Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Colors } from "../constants/Colors";
+import { PostWithId } from "../services/postService";
+import { formatPostTime } from "../utils/timeUtils";
+import { useUserStore } from "../stores/userStore";
+import { FloatingEmoji, FloatingItem } from "./FloatingEmoji";
+import { useAlert } from "./AlertProvider";
+import { CommentInputBar } from "./CommentInputBar";
+import { useKeyboardHeight } from "../hooks/useKeyboardHeight";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
 
 const EMOJI_REACTIONS = [
-  { id: 'heart', emoji: '❤️' },
-  { id: 'fire', emoji: '🔥' },
-  { id: 'clap', emoji: '👏' },
-  { id: 'like', emoji: '👍' },
-  { id: 'laugh', emoji: '😂' },
-  { id: 'angry', emoji: '😡' },
+  { id: "heart", emoji: "❤️" },
+  { id: "fire", emoji: "🔥" },
+  { id: "clap", emoji: "👏" },
+  { id: "like", emoji: "👍" },
+  { id: "laugh", emoji: "😂" },
+  { id: "angry", emoji: "😡" },
 ];
 
 interface FriendPhotoCardProps {
-  post: ExplorePost;
+  post: PostWithId;
   containerHeight: number;
 }
 
-export const FriendPhotoCard = ({ post, containerHeight }: FriendPhotoCardProps): React.JSX.Element => {
+export const FriendPhotoCard = ({
+  post,
+  containerHeight,
+}: FriendPhotoCardProps): React.JSX.Element => {
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingItem[]>([]);
-  const [commentText, setCommentText] = useState<string>('');
-  
+  const [commentText, setCommentText] = useState<string>("");
+
   // RẤT QUAN TRỌNG VỚI FLASHLIST: Reset State khi bị tái chế (recycle)
   useEffect(() => {
     setSelectedEmoji(null);
     setFloatingEmojis([]);
-    setCommentText('');
+    setCommentText("");
   }, [post.id]);
 
   const keyboardHeight = useKeyboardHeight();
@@ -44,16 +49,19 @@ export const FriendPhotoCard = ({ post, containerHeight }: FriendPhotoCardProps)
   });
 
   const { showAlert } = useAlert();
+  const { users } = useUserStore();
+  const author = users[post.authorId];
+  const displayName = author?.firstName || "user";
 
   const handleSendComment = useCallback((): void => {
     if (!commentText.trim()) return;
 
     showAlert({
-      title: 'Đã gửi phản hồi',
-      message: `Bình luận của bạn trên bài viết @${post.userName || 'user'}: "${commentText}"`,
-      type: 'success',
+      title: "Đã gửi phản hồi",
+      message: `Bình luận của bạn trên bài viết @${displayName}: "${commentText}"`,
+      type: "success",
     });
-    setCommentText('');
+    setCommentText("");
   }, [commentText, post, showAlert]);
 
   const removeFloatingEmoji = useCallback((id: string) => {
@@ -96,7 +104,7 @@ export const FriendPhotoCard = ({ post, containerHeight }: FriendPhotoCardProps)
 
         {/* Time Badge (Top Right) */}
         <View style={styles.timeBadge}>
-          <Text style={styles.timeText}>{post.timeAgo}</Text>
+          <Text style={styles.timeText}>{formatPostTime(post.createdAt)}</Text>
         </View>
 
         {/* Bottom Overlay Container */}
@@ -104,13 +112,14 @@ export const FriendPhotoCard = ({ post, containerHeight }: FriendPhotoCardProps)
           {/* Location Badge */}
           <View style={styles.locationPill}>
             <Ionicons name="location" size={14} color={Colors.primary} />
-            <Text style={styles.locationText}>{post.location}</Text>
+            <Text style={styles.locationText}>{post.location?.address || "Chưa xác định"}</Text>
           </View>
 
           {/* Caption Box */}
           <View style={styles.captionBox}>
             <Text style={styles.captionText}>
-              {post.title || '#solotravel, misty mornings in the mountains... 🏔️ ✨'}
+              {post.caption ||
+                "#solotravel, misty mornings in the mountains... 🏔️ ✨"}
             </Text>
           </View>
         </View>
@@ -137,56 +146,56 @@ export const FriendPhotoCard = ({ post, containerHeight }: FriendPhotoCardProps)
       </View>
 
       {/* Spacer to prevent Floating CommentBar from covering reactions */}
-    
-     <Animated.View style={[styles.commentContainer,keyboardAdaptiveStyle]}>
-       <CommentInputBar
-        value={commentText}
-        onChangeText={setCommentText}
-        onSubmit={handleSendComment}
-        visible={true}
-      />
-     </Animated.View>
+
+      <Animated.View style={[styles.commentContainer, keyboardAdaptiveStyle]}>
+        <CommentInputBar
+          value={commentText}
+          onChangeText={setCommentText}
+          onSubmit={handleSendComment}
+          visible={true}
+        />
+      </Animated.View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   postCardContainer: {
-    width: '100%',
+    width: "100%",
     paddingHorizontal: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   cardWrapper: {
-    width: '100%',
+    width: "100%",
     aspectRatio: 3 / 4,
     borderRadius: 40,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 1.5,
-    borderColor: 'rgba(112, 194, 180, 0.35)',
+    borderColor: "rgba(112, 194, 180, 0.35)",
     backgroundColor: Colors.surface,
-    position: 'relative',
+    position: "relative",
   },
   cardImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   floatingContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+    justifyContent: "flex-end",
+    alignItems: "center",
     paddingBottom: 60,
     zIndex: 10,
   },
   timeBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: 14,
     right: 14,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
@@ -194,21 +203,21 @@ const styles = StyleSheet.create({
   timeText: {
     color: Colors.white,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   bottomOverlay: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 16,
     left: 16,
     right: 16,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
     gap: 10,
   },
   locationPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
-    backgroundColor: 'rgba(15, 20, 23, 0.75)',
+    backgroundColor: "rgba(15, 20, 23, 0.75)",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 14,
@@ -216,59 +225,58 @@ const styles = StyleSheet.create({
   locationText: {
     color: Colors.white,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   captionBox: {
-    backgroundColor: 'rgba(15, 20, 23, 0.8)',
+    backgroundColor: "rgba(15, 20, 23, 0.8)",
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 16,
-    maxWidth: '96%',
+    maxWidth: "96%",
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   captionText: {
     color: Colors.white,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     lineHeight: 18,
   },
   reactionsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 10,
     marginTop: 18,
     marginBottom: 6,
-    backgroundColor: 'rgba(30, 37, 43, 0.5)',
+    backgroundColor: "rgba(30, 37, 43, 0.5)",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: "rgba(255, 255, 255, 0.06)",
   },
   emojiBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: Colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   emojiBtnSelected: {
     borderColor: Colors.primary,
-    backgroundColor: 'rgba(112, 194, 180, 0.2)',
+    backgroundColor: "rgba(112, 194, 180, 0.2)",
   },
   emojiSymbol: {
     fontSize: 19,
   },
-  commentContainer:{
-    flex:1,
-    width:'100%',
-    alignItems:'center',
-    justifyContent:'center',
-    
-  }
+  commentContainer: {
+    flex: 1,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

@@ -1,11 +1,12 @@
-import React from 'react';
-import { StyleSheet, View, Text, Image, Pressable } from 'react-native';
-import { Ionicons, Feather } from '@expo/vector-icons';
-import { Colors } from '../constants/Colors';
-import { ExplorePost } from './ExplorePostCard';
+import React from "react";
+import { StyleSheet, View, Text, Image, Pressable } from "react-native";
+import { Ionicons, Feather } from "@expo/vector-icons";
+import { Colors } from "../constants/Colors";
+import { PostWithId } from "../services/postService";
+import { useUserStore } from "../stores/userStore";
 
 interface PostDetailHeaderProps {
-  activePost: ExplorePost;
+  activePost: PostWithId;
   onBack: () => void;
   onSettings: () => void;
 }
@@ -15,6 +16,11 @@ export const PostDetailHeader = ({
   onBack,
   onSettings,
 }: PostDetailHeaderProps): React.JSX.Element => {
+  const { users } = useUserStore();
+  const author = users[activePost.authorId];
+  const displayName = author?.firstName || 'User';
+  const initial = displayName.charAt(0).toUpperCase();
+
   return (
     <View style={styles.headerContainer}>
       <Pressable
@@ -28,17 +34,21 @@ export const PostDetailHeader = ({
       <Pressable
         style={({ pressed }) => [styles.userPill, pressed && styles.btnPressed]}
       >
-        {activePost.userAvatar ? (
-          <Image source={{ uri: activePost.userAvatar }} style={styles.pillAvatar} />
+        {author?.avatarUrl ? (
+          <Image
+            source={{ uri: author.avatarUrl }}
+            style={styles.pillAvatar}
+          />
         ) : (
           <View style={styles.pillAvatarPlaceholder}>
             <Text style={styles.pillAvatarInitial}>
-              {(activePost.userName || 'User').charAt(0).toUpperCase()}
+              {initial}
             </Text>
           </View>
         )}
         <Text style={styles.pillText}>
-          @{activePost.userName ? activePost.userName.replace(/\s+/g, '_') : 'Alex_W'}
+          @
+          {displayName.replace(/\s+/g, "_")}
         </Text>
         <Ionicons name="chevron-down" size={14} color={Colors.textMuted} />
       </Pressable>
@@ -56,9 +66,9 @@ export const PostDetailHeader = ({
 
 const styles = StyleSheet.create({
   headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
@@ -66,23 +76,23 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
   },
   btnPressed: {
     opacity: 0.7,
   },
   userPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
     backgroundColor: Colors.surface,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   pillAvatar: {
     width: 22,
@@ -94,17 +104,17 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   pillAvatarInitial: {
     color: Colors.black,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   pillText: {
     color: Colors.white,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 });

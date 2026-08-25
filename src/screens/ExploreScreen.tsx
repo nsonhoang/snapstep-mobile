@@ -10,7 +10,10 @@ import {
   ExploreFilterChips,
   FilterChipItem,
 } from "../components/ExploreFilterChips";
-import { ExplorePostCard, ExplorePost } from "../components/ExplorePostCard";
+import { ExplorePostCard } from "../components/ExplorePostCard";
+import { usePostStore } from "../stores/postStore";
+import { PostWithId } from "../services/postService";
+import { ActivityIndicator } from "react-native";
 
 import { ExploreSkeleton } from "../components/ExploreSkeleton";
 import {
@@ -50,86 +53,16 @@ const MOCK_FILTER_CHIPS: FilterChipItem[] = [
   { id: "5", label: "Lan" },
 ];
 
-const MOCK_POSTS: ExplorePost[] = [
-  {
-    id: "post-1",
-    userId: "1",
-    imageUrl:
-      "https://images.unsplash.com/photo-1540611025311-01df3cef54b5?q=80&w=800",
-    location: "Sa Pa",
-    timeAgo: "2h ago",
-    userName: "Minh Hoàng",
-    userAvatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=250",
-    title: "Săn mây ngắm ruộng bậc thang Mường Hoa 🌾",
-  },
-  {
-    id: "post-2",
-    userId: "2",
-    imageUrl:
-      "https://cdn-media.sforum.vn/storage/app/media/wp-content/uploads/2024/01/dia-diem-du-lich-o-ha-noi-thumb.jpg",
-    location: "Ha Noi",
-    timeAgo: "1d ago",
-    userName: "Bảo An",
-    userAvatar:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=250",
-    title: "Nắng sớm thu Hà Nội bên Tháp Rùa ☀️",
-  },
-  {
-    id: "post-3",
-    userId: "3",
-    imageUrl:
-      "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?q=80&w=800",
-    location: "Ha Noi",
-    timeAgo: "1d ago",
-    userName: "Ngọc Lan",
-    userAvatar:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=250",
-    title: "Chiều bình yên bên Hồ Tây chill chill 🌅",
-  },
-  {
-    id: "post-4",
-    userId: "3",
-    imageUrl:
-      "https://images.unsplash.com/photo-1528127269322-539801943592?q=80&w=800",
-    location: "Ha Noi",
-    timeAgo: "1d ago",
-    userName: "Tuấn Kiệt",
-    title: "Phố cổ về đêm rực rỡ sắc màu 🏮",
-  },
-  {
-    id: "post-5",
-    userId: "2",
-    imageUrl:
-      "https://vcdn1-dulich.vnecdn.net/2022/06/01/Hoi-An-VnExpress-5851-16488048-4863-2250-1654057244.jpg?w=0&h=0&q=100&dpr=2&fit=crop&s=k1SeSD7zn2e69TSWKfpoag",
-    location: "Hoi An",
-    timeAgo: "30m ago",
-    userName: "Phương Anh",
-    userAvatar:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=250",
-    title: "Thả hoa đăng cầu may trên sông Hoài ✨",
-  },
-  {
-    id: "post-6",
-    userId: "1",
-    imageUrl:
-      "https://images.unsplash.com/photo-1583417319070-4a69db38a482?q=80&w=800",
-    location: "Da Lat",
-    timeAgo: "4h ago",
-    userName: "Đức Anh",
-    title: "Đón hừng đông rực rỡ ở đồi thông Đà Lạt 🌲",
-  },
-];
-
 export const ExploreScreen = ({
   navigation,
 }: ExploreScreenProps): React.JSX.Element => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedChipId, setSelectedChipId] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"grid" | "feed">("grid");
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const db = getFirestore();
   const { user } = useAuthStore();
+  const { posts, isLoading, isFetchingMore, subscribePosts, fetchMorePosts } =
+    usePostStore();
   // create user
   useEffect(() => {
     const createUser = async () => {
@@ -182,38 +115,44 @@ export const ExploreScreen = ({
     createUser();
   }, [user?.uid]);
 
-  // Initial load effect for Skeleton
+  // Initial load effect với Realtime Listener
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+    const unsubscribe = subscribePosts();
+    // Dọn dẹp listener khi màn hình bị unmount để tránh rò rỉ bộ nhớ (memory leak)
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [subscribePosts]);
 
   // Filter posts by search query
   const filteredPosts = useMemo(() => {
     if (selectedChipId === "all") {
-      return MOCK_POSTS.filter((post) =>
-        post.location.toLowerCase().includes(searchQuery.toLowerCase()),
+      return posts.filter((post) =>
+        post.location?.address
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase()),
       );
     } else {
-      return MOCK_POSTS.filter(
+      return posts.filter(
         (post) =>
-          post.userId === selectedChipId &&
-          post.location.toLowerCase().includes(searchQuery.toLowerCase()),
+          post.authorId === selectedChipId &&
+          post.location?.address
+            ?.toLowerCase()
+            .includes(searchQuery.toLowerCase()),
       );
     }
-  }, [searchQuery, selectedChipId]);
+  }, [searchQuery, selectedChipId, posts]);
 
   const handlePressPost = useCallback(
-    (post: ExplorePost): void => {
+    (post: PostWithId): void => {
+      // Tạm thời comment vì PostDetailScreen chưa đổi type sang PostWithId
       navigation.navigate("PostDetail", { post, posts: filteredPosts });
     },
     [navigation, filteredPosts],
   );
 
   const renderPostItem = useCallback(
-    ({ item }: { item: ExplorePost }) => (
+    ({ item }: { item: PostWithId }) => (
       <View style={viewMode === "grid" ? styles.gridCell : styles.feedCell}>
         <ExplorePostCard
           post={item}
@@ -227,13 +166,8 @@ export const ExploreScreen = ({
 
   // Toggle View Mode with quick Skeleton feedback
   const handleToggleViewMode = (): void => {
-    setIsLoading(true);
     const nextMode = viewMode === "grid" ? "feed" : "grid";
     setViewMode(nextMode);
-
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 350);
   };
 
   const renderHeader = () => (
@@ -254,7 +188,7 @@ export const ExploreScreen = ({
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {renderHeader()}
 
-      {isLoading ? (
+      {isLoading && posts.length === 0 ? (
         <ExploreSkeleton viewMode={viewMode} />
       ) : (
         <View style={{ flex: 1 }}>
@@ -266,6 +200,17 @@ export const ExploreScreen = ({
             renderItem={renderPostItem}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.flatListContent}
+            onEndReached={() => fetchMorePosts()}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              isFetchingMore ? (
+                <ActivityIndicator
+                  size="small"
+                  color={Colors.primary}
+                  style={{ marginVertical: 16 }}
+                />
+              ) : null
+            }
           />
         </View>
       )}

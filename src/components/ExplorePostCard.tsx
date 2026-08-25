@@ -1,25 +1,20 @@
-import React from 'react';
-import { StyleSheet, View, Text, Pressable } from 'react-native';
-import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../constants/Colors';
+import React, { useEffect } from "react";
+import { StyleSheet, View, Text, Pressable } from "react-native";
+import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
+import { Colors } from "../constants/Colors";
+import { formatPostTime } from "../utils/timeUtils";
 
-export interface ExplorePost {
-  id: string;
-  userId: string;
-  imageUrl: string;
-  location: string;
-  timeAgo: string;
-  userName?: string;
-  userAvatar?: string;
-  title?: string;
-  aspectRatio?: number;
-}
+import { PostWithId } from "../services/postService";
+import { useAuthStore } from "../stores/authStore";
+import { useUserStore } from "../stores/userStore";
+
+// TODO: Remove this mock interface once all screens migrate to PostWithId
 
 interface ExplorePostCardProps {
-  post: ExplorePost;
+  post: PostWithId;
   isFeedMode?: boolean;
-  onPressPost?: (post: ExplorePost) => void;
+  onPressPost?: (post: PostWithId) => void;
 }
 
 export const ExplorePostCard = ({
@@ -27,6 +22,20 @@ export const ExplorePostCard = ({
   isFeedMode = false,
   onPressPost,
 }: ExplorePostCardProps): React.JSX.Element => {
+  const { user: currentUser } = useAuthStore();
+  const { users, fetchUserById } = useUserStore();
+
+  useEffect(() => {
+    if (post.authorId) {
+      fetchUserById(post.authorId);
+    }
+  }, [post.authorId, fetchUserById]);
+
+  const author = users[post.authorId];
+  const isMe = post.authorId === currentUser?.uid;
+  const displayName = isMe ? "Tôi" : author?.firstName || "Người dùng";
+  const initial = displayName.charAt(0).toUpperCase();
+
   return (
     <Pressable
       onPress={() => onPressPost?.(post)}
@@ -44,49 +53,72 @@ export const ExplorePostCard = ({
         transition={300}
       />
 
-      {/* Top Left User Author Badge */}
-      {post.userName && (
-        <View style={[styles.userBadge, isFeedMode && styles.feedUserBadge]}>
-          {post.userAvatar ? (
-            <Image source={post.userAvatar} style={styles.userAvatar} contentFit="cover" transition={300} />
-          ) : (
-            <View style={styles.userAvatarPlaceholder}>
-              <Text style={styles.userAvatarInitial}>
-                {post.userName.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
-          <Text style={[styles.userNameText, isFeedMode && styles.feedUserNameText]} numberOfLines={1}>
-            {post.userName}
-          </Text>
-        </View>
-      )}
+      {/* Top Left User Author Badge (Lấy từ Cache User Store) */}
+      <View style={[styles.userBadge, isFeedMode && styles.feedUserBadge]}>
+        {author?.avatarUrl ? (
+          <Image
+            source={author.avatarUrl}
+            style={styles.userAvatar}
+            contentFit="cover"
+            transition={300}
+          />
+        ) : (
+          <View style={styles.userAvatarPlaceholder}>
+            <Text style={styles.userAvatarInitial}>{initial}</Text>
+          </View>
+        )}
+        <Text
+          style={[styles.userNameText, isFeedMode && styles.feedUserNameText]}
+          numberOfLines={1}
+        >
+          {displayName}
+        </Text>
+      </View>
 
       {/* Top Right Time Badge */}
       <View style={[styles.timeBadge, isFeedMode && styles.feedTimeBadge]}>
         <Text style={[styles.timeText, isFeedMode && styles.feedTimeText]}>
-          {post.timeAgo}
+          {formatPostTime(post.createdAt)}
         </Text>
       </View>
 
       {/* Bottom Overlay Container (Stitch Compact Style) */}
-      <View style={[styles.bottomContainer, isFeedMode && styles.feedBottomContainer]}>
+      <View
+        style={[
+          styles.bottomContainer,
+          isFeedMode && styles.feedBottomContainer,
+        ]}
+      >
         {/* Location Tag Badge */}
-        <View style={[styles.locationBadge, isFeedMode && styles.feedLocationBadge]}>
-          <Ionicons name="location" size={isFeedMode ? 14 : 12} color={Colors.primary} />
-          <Text
-            style={[styles.locationText, isFeedMode && styles.feedLocationText]}
-            numberOfLines={1}
+        {post.location?.address && (
+          <View
+            style={[
+              styles.locationBadge,
+              isFeedMode && styles.feedLocationBadge,
+            ]}
           >
-            {post.location}
-          </Text>
-        </View>
+            <Ionicons
+              name="location"
+              size={isFeedMode ? 14 : 12}
+              color={Colors.primary}
+            />
+            <Text
+              style={[
+                styles.locationText,
+                isFeedMode && styles.feedLocationText,
+              ]}
+              numberOfLines={1}
+            >
+              {post.location.address}
+            </Text>
+          </View>
+        )}
 
         {/* Title / Caption Box (Feed Mode) */}
-        {isFeedMode && post.title && (
+        {isFeedMode && post.caption && (
           <View style={styles.feedTitleBox}>
             <Text style={styles.feedPostTitle} numberOfLines={2}>
-              {post.title}
+              {post.caption}
             </Text>
           </View>
         )}
@@ -97,13 +129,13 @@ export const ExplorePostCard = ({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    width: '100%',
+    width: "100%",
     aspectRatio: 3 / 4,
-    overflow: 'hidden',
+    overflow: "hidden",
     backgroundColor: Colors.surface,
-    position: 'relative',
+    position: "relative",
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   gridCardContainer: {
     borderRadius: 16,
@@ -112,24 +144,24 @@ const styles = StyleSheet.create({
   feedCardContainer: {
     borderRadius: 24,
     marginBottom: 18,
-    borderColor: 'rgba(112, 194, 180, 0.3)',
+    borderColor: "rgba(112, 194, 180, 0.3)",
   },
   image: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   userBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: 10,
     left: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 14,
-    maxWidth: '60%',
+    maxWidth: "60%",
   },
   feedUserBadge: {
     top: 14,
@@ -148,28 +180,28 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   userAvatarInitial: {
     color: Colors.black,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   userNameText: {
     color: Colors.white,
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   feedUserNameText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   timeBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: 10,
     right: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -183,17 +215,17 @@ const styles = StyleSheet.create({
   timeText: {
     color: Colors.white,
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   feedTimeText: {
     fontSize: 12,
   },
   bottomContainer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 10,
     left: 10,
     right: 10,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
     gap: 6,
   },
   feedBottomContainer: {
@@ -203,43 +235,43 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   locationBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 14,
-    maxWidth: '85%',
+    maxWidth: "85%",
   },
   feedLocationBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 14,
-    backgroundColor: 'rgba(15, 20, 23, 0.75)',
+    backgroundColor: "rgba(15, 20, 23, 0.75)",
   },
   locationText: {
     color: Colors.white,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   feedLocationText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   feedTitleBox: {
-    backgroundColor: 'rgba(15, 20, 23, 0.8)',
+    backgroundColor: "rgba(15, 20, 23, 0.8)",
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 16,
-    maxWidth: '92%',
+    maxWidth: "92%",
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   feedPostTitle: {
     color: Colors.white,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     lineHeight: 18,
   },
 });

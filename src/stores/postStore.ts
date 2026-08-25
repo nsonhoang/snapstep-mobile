@@ -7,60 +7,85 @@ interface PostState {
   isLoading: boolean;
   isFetchingMore: boolean;
   hasMore: boolean;
-  lastDoc: DocumentSnapshot | null;
+  limitCount: number;
 
-  fetchPosts: (authorId?: string) => Promise<void>;
-  fetchMorePosts: (authorId?: string) => Promise<void>;
+  subscribePosts: (authorId?: string) => () => void;
+  fetchMorePosts: (authorId?: string) => void;
+  removePost: (postId: string) => void;
 }
 
-const POSTS_PER_PAGE = 10;
+const INITIAL_LIMIT = 10;
+let unsubscribeSnapshot: (() => void) | null = null;
 
 export const usePostStore = create<PostState>((set, get) => ({
   posts: [],
   isLoading: false,
   isFetchingMore: false,
   hasMore: true,
-  lastDoc: null,
+  limitCount: INITIAL_LIMIT,
 
-  fetchPosts: async (authorId?: string) => {
-    set({ isLoading: true, hasMore: true });
-    try {
-      const { posts, lastDoc } = await PostService.getPosts(
-        POSTS_PER_PAGE,
-        authorId,
-      );
+  subscribePosts: (authorId?: string) => {
+    set({ isLoading: true, limitCount: INITIAL_LIMIT });
 
-      set({
-        posts,
-        isLoading: false,
-        lastDoc,
-        hasMore: posts.length === POSTS_PER_PAGE,
-      });
-    } catch (error) {
-      console.error("Lỗi khi tải Posts:", error);
-      set({ isLoading: false });
+    // Hủy lắng nghe cũ (nếu có) trước khi tạo mới
+    if (unsubscribeSnapshot) {
+      unsubscribeSnapshot();
     }
+
+    unsubscribeSnapshot = PostService.subscribeToPosts(
+      INITIAL_LIMIT,
+      authorId,
+      (posts) => {
+        set({
+          posts,
+          isLoading: false,
+          isFetchingMore: false,
+          hasMore: posts.length >= get().limitCount,
+        });
+      },
+    );
+
+    // Trả về hàm hủy để Component (ExploreScreen) có thể dọn dẹp khi Unmount
+    return () => {
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
+    };
   },
 
-  fetchMorePosts: async (authorId?: string) => {
-    const { isFetchingMore, hasMore, lastDoc, posts } = get();
+  fetchMorePosts: (authorId?: string) => {
+    const { isFetchingMore, hasMore, limitCount } = get();
 
-    if (isFetchingMore || !hasMore || !lastDoc) return;
+    // Nếu đang tải thêm hoặc không còn bài, thì bỏ qua
+    if (isFetchingMore || !hasMore) return;
 
-    set({ isFetchingMore: true });
-    try {
-      const { posts: newPosts, lastDoc: newLastDoc } =
-        await PostService.getMorePosts(POSTS_PER_PAGE, lastDoc, authorId);
+    const newLimit = limitCount + 10;
+    set({ isFetchingMore: true, limitCount: newLimit });
 
-      set({
-        posts: [...posts, ...newPosts],
-        isFetchingMore: false,
-        lastDoc: newLastDoc,
-        hasMore: newPosts.length === POSTS_PER_PAGE,
-      });
-    } catch (error) {
-      console.error("Lỗi khi tải thêm Posts:", error);
-      set({ isFetchingMore: false });
+    if (unsubscribeSnapshot) {
+      unsubscribeSnapshot();
     }
+
+    unsubscribeSnapshot = PostService.subscribeToPosts(
+      newLimit,
+      authorId,
+      (posts) => {
+        set({
+          posts,
+          isFetchingMore: false,
+          // Kiểm tra xem số lượng lấy về có đáp ứng đủ giới hạn mới không
+          hasMore: posts.length >= newLimit,
+        });
+      },
+    );
+  },
+
+  removePost: (postId: string) => {
+    // Với onSnapshot, khi xóa trên server, danh sách tự cập nhật ngay lập tức.
+
+    set((state) => ({
+      posts: state.posts.filter((post) => post.id !== postId),
+    }));
   },
 }));
