@@ -9,87 +9,66 @@ import { ChatSkeleton } from '../components/ChatSkeleton';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-
-const MOCK_CHATS: Chat[] = [
-  {
-    id: '1',
-    name: 'Travel Crew 🏔️',
-    lastMessage: 'Just posted a new photo from Ha Giang!',
-    time: '2m ago',
-    unread: 3,
-    avatar: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=250',
-    isOnline: true,
-  },
-  {
-    id: '2',
-    name: 'Alex_W',
-    lastMessage: 'That hike looked intense! 🥾',
-    time: '1h ago',
-    unread: 0,
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=250',
-    isOnline: true,
-  },
-  {
-    id: '3',
-    name: 'Linh_Nguyen',
-    lastMessage: 'Are you joining the Tokyo trip next month?',
-    time: '3h ago',
-    unread: 1,
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=250',
-    isOnline: false,
-  },
-  {
-    id: '4',
-    name: 'Marco Polo',
-    lastMessage: 'Found a hidden gem near the waterfalls!',
-    time: 'Yesterday',
-    unread: 0,
-    avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=250',
-    isOnline: true,
-  },
-  {
-    id: '5',
-    name: 'Sasha_V',
-    lastMessage: 'The video you sent is incredible!',
-    time: 'Yesterday',
-    unread: 0,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=250',
-    isOnline: false,
-  },
-];
+import { useAuthStore } from '../stores/authStore';
+import { useFriendshipStore } from '../stores/friendshipStore';
 
 export const FriendsScreen = (): React.JSX.Element => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { user } = useAuthStore();
+  const currentUserId = user?.uid || '';
 
-  // Simulate network loading
+  const {
+    friends,
+    incomingRequests,
+    isLoading,
+    subscribeFriends,
+  } = useFriendshipStore();
+
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Lắng nghe cập nhật danh sách bạn bè thời gian thực
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!currentUserId) return;
+    const unsubscribe = subscribeFriends(currentUserId);
+    return () => unsubscribe();
+  }, [currentUserId]);
 
+  // Chuyển đổi danh sách bạn bè thật sang format ChatItem để hiển thị
+  const chatsList: Chat[] = useMemo(() => {
+    return friends.map((friend) => ({
+      id: friend.id,
+      name: `${friend.firstName || ''} ${friend.lastName || ''}`.trim() || friend.email || 'Bạn bè',
+      lastMessage: 'Đã kết nối bạn đồng hành!',
+      time: 'Vừa xong',
+      unread: 0,
+      avatar:
+        friend.avatarUrl ||
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=250',
+      isOnline: true,
+    }));
+  }, [friends]);
+
+  // Lọc theo từ khóa tìm kiếm
   const filteredChats = useMemo(() => {
-    if (!searchQuery.trim()) return MOCK_CHATS;
-    return MOCK_CHATS.filter(c => 
+    if (!searchQuery.trim()) return chatsList;
+    return chatsList.filter((c) =>
       c.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
+  }, [searchQuery, chatsList]);
 
   const renderChatItem = useCallback(({ item }: { item: Chat }) => {
     return <ChatItem item={item} />;
   }, []);
 
-
   const navigateToNewFriends = () => {
-    console.log('Navigate to new friends');
     navigation.navigate('SearchBuddies');
   };
+
   const navigateToNotification = () => {
     navigation.navigate('Notifications');
   };
+
+  const hasIncomingRequests = incomingRequests.length > 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -97,15 +76,24 @@ export const FriendsScreen = (): React.JSX.Element => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
         <View style={styles.iconContainer}>
-           <Pressable style={styles.newFriends} onPress={navigateToNotification}>
-          <Ionicons name="notifications-outline" size={24} color={Colors.primary} /> 
-          {1 ===1 ? <View style={styles.badge} /> : null}
-        </Pressable>
-        <Pressable style={styles.newFriends} onPress={navigateToNewFriends}>
-          <Ionicons name="person-add-outline" size={24} color={Colors.primary} />
-          {1 ===1 ? <View style={styles.badge} /> : null}
+          <Pressable
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+            onPress={navigateToNotification}
+          >
+            <Ionicons name="notifications-outline" size={24} color={Colors.primary} />
+          </Pressable>
 
-        </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+            onPress={navigateToNewFriends}
+          >
+            <Ionicons name="person-add-outline" size={24} color={Colors.primary} />
+            {hasIncomingRequests && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{incomingRequests.length}</Text>
+              </View>
+            )}
+          </Pressable>
         </View>
       </View>
 
@@ -114,18 +102,18 @@ export const FriendsScreen = (): React.JSX.Element => {
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search friends or chats..."
+          placeholder="Tìm kiếm bạn bè..."
         />
       </View>
 
-      {/* Chat List */}
+      {/* Danh sách bạn bè */}
       {isLoading ? (
         <View style={styles.listContent}>
-          {[1, 2, 3, 4, 5, 6].map((key) => (
+          {[1, 2, 3, 4].map((key) => (
             <ChatSkeleton key={key} />
           ))}
         </View>
-      ) : (
+      ) : filteredChats.length > 0 ? (
         <FlatList
           data={filteredChats}
           keyExtractor={(item) => item.id}
@@ -133,6 +121,28 @@ export const FriendsScreen = (): React.JSX.Element => {
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="people-outline" size={60} color={Colors.outline} />
+          <Text style={styles.emptyTitle}>
+            {searchQuery.trim()
+              ? `Không tìm thấy bạn bè "${searchQuery}"`
+              : 'Chưa có bạn bè nào'}
+          </Text>
+          <Text style={styles.emptySubtitle}>
+            Hãy tìm kiếm và kết bạn với những người đồng hành trên SnapStep!
+          </Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.findBuddiesBtn,
+              pressed && styles.pressed,
+            ]}
+            onPress={navigateToNewFriends}
+          >
+            <Ionicons name="person-add" size={16} color={Colors.black} />
+            <Text style={styles.findBuddiesBtnText}>Tìm Bạn Bè Ngay</Text>
+          </Pressable>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -148,7 +158,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-   
     paddingBottom: 16,
   },
   headerTitle: {
@@ -157,7 +166,14 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     letterSpacing: -0.5,
   },
-  newFriends: {
+  iconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 10,
+    paddingBottom: 16,
+  },
+  iconBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -166,28 +182,72 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
+    position: 'relative',
   },
-  iconContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap:10,
-    paddingTop: 10,
-    paddingBottom: 16,
-  },
-  badge:{
+  badge: {
     position: 'absolute',
-    top: 8,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: Colors.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: Colors.background,
+  },
+  badgeText: {
+    color: Colors.black,
+    fontSize: 10,
+    fontWeight: '800',
   },
   searchContainer: {
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
   listContent: {
-    paddingBottom: 100, // Leave space for bottom tab
+    paddingBottom: 100, // Để khoảng trống cho Bottom Tab
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 36,
+    paddingBottom: 80,
+  },
+  emptyTitle: {
+    color: Colors.white,
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    color: Colors.textMuted,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
+  findBuddiesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 999,
+    marginTop: 24,
+  },
+  findBuddiesBtnText: {
+    color: Colors.black,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.75,
+    transform: [{ scale: 0.96 }],
   },
 });

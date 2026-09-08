@@ -44,3 +44,4 @@ All logic must strictly reside within the `src/` directory. You must place files
 - **Rule 2 - Search Official Docs:** When asked to add a new feature, integrate a native module, or fix a bug, you MUST consult the official Expo documentation (`docs.expo.dev`) or React Navigation documentation to find the most up-to-date and recommended components. Do not rely solely on your internal training data for native library versions.
 - **Rule 3 - Step-by-Step Execution:** Implement features logically and incrementally. Present your code in manageable chunks rather than generating massive files all at once.
 - **Rule 4 - No Auto-Commit:** Never execute `git commit` automatically.
+- **Rule 5 - Automated Skill Pipeline:** For EVERY prompt from the user, the Agent MUST automatically apply the meta-skill `using-agent-skills` first to discover and route the appropriate development phase skills according to its Decision Tree, without requiring manual slash commands.

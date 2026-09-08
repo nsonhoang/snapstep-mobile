@@ -1,0 +1,74 @@
+rules_version = '2';
+
+// Dịch vụ Firebase Storage cho SnapStep
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // =========================================================================
+    // 1. CÁC HÀM TRỢ GIÚP KIỂM TRA ĐIỀU KIỆN (HELPER FUNCTIONS)
+    // =========================================================================
+
+    // Kiểm tra: Người dùng đã đăng nhập Firebase Auth hay chưa?
+    function daDangNhap() {
+      return request.auth != null;
+    }
+
+    // Kiểm tra: Có phải chính chủ sở hữu tài khoản hay không?
+    function laChinhChu(userId) {
+      return daDangNhap() && request.auth.uid == userId;
+    }
+
+    // Kiểm tra: Định dạng file bắt buộc phải là hình ảnh và dung lượng tối đa 10MB
+    function laFileAnhHopLe() {
+      return request.resource.contentType.matches('image/.*')
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Kiểm tra: Người xem có phải là bạn bè đã 'accepted' của tác giả không?
+    // Sử dụng tính năng Cross-Service Rules đọc dữ liệu quan hệ từ Cloud Firestore
+    function laBanBe(tacGiaUid) {
+      return daDangNhap() && (
+        // Trường hợp 1: Tự mình xem ảnh do chính mình chụp/đăng
+        request.auth.uid == tacGiaUid ||
+
+        // Trường hợp 2: Kiểm tra trong subcollection "friends" của chính người xem
+        (
+          firestore.exists(/databases/(default)/documents/friendships/$(request.auth.uid)/friends/$(tacGiaUid)) &&
+          firestore.get(/databases/(default)/documents/friendships/$(request.auth.uid)/friends/$(tacGiaUid)).data.status == 'accepted'
+        ) ||
+
+        // Trường hợp 3: Kiểm tra trong subcollection "friends" của tác giả
+        (
+          firestore.exists(/databases/(default)/documents/friendships/$(tacGiaUid)/friends/$(request.auth.uid)) &&
+          firestore.get(/databases/(default)/documents/friendships/$(tacGiaUid)/friends/$(request.auth.uid)).data.status == 'accepted'
+        )
+      );
+    }
+
+    // =========================================================================
+    // 2. BẢO MẬT ẢNH BÀI ĐĂNG & CHECK-IN (snapstep/{userId}/{fileName})
+    // =========================================================================
+    match /snapstep/{userId}/{fileName} {
+      // ĐỌC: CHỈ TÁC GIẢ HOẶC BẠN BÈ ĐÃ KẾT BẠN ('accepted') MỚI ĐƯỢC XEM ẢNH
+      allow read: if laBanBe(userId);
+
+      // TẠO MỚI & SỬA: Chỉ chính chủ mới được upload vào thư mục của mình và phải là file ảnh hợp lệ
+      allow create, update: if laChinhChu(userId) && laFileAnhHopLe();
+
+      // XÓA: Chỉ chính chủ mới được xóa ảnh của mình
+      allow delete: if laChinhChu(userId);
+    }
+
+    // =========================================================================
+    // 3. BẢO MẬT ẢNH ĐẠI DIỆN HỒ SƠ (avatars/{userId}/{fileName})
+    // =========================================================================
+    match /avatars/{userId}/{fileName} {
+      // ĐỌC: CÔNG KHAI - Bất kỳ ai cũng có thể xem ảnh đại diện của nhau
+      allow read: if true;
+
+      // TẠO MỚI, SỬA & XÓA: Chỉ chính chủ mới được cập nhật hoặc xóa avatar của mình
+      allow create, update: if laChinhChu(userId) && laFileAnhHopLe();
+      allow delete: if laChinhChu(userId);
+    }
+  }
+}

@@ -9,8 +9,8 @@ interface PostState {
   hasMore: boolean;
   limitCount: number;
 
-  subscribePosts: (authorId?: string) => () => void;
-  fetchMorePosts: (authorId?: string) => void;
+  subscribePosts: (authorIdOrIds?: string | string[]) => () => void;
+  fetchMorePosts: (authorIdOrIds?: string | string[]) => void;
   removePost: (postId: string) => void;
 }
 
@@ -24,7 +24,7 @@ export const usePostStore = create<PostState>((set, get) => ({
   hasMore: true,
   limitCount: INITIAL_LIMIT,
 
-  subscribePosts: (authorId?: string) => {
+  subscribePosts: (authorIdOrIds?: string | string[]) => {
     set({ isLoading: true, limitCount: INITIAL_LIMIT });
 
     // Hủy lắng nghe cũ (nếu có) trước khi tạo mới
@@ -34,7 +34,7 @@ export const usePostStore = create<PostState>((set, get) => ({
 
     unsubscribeSnapshot = PostService.subscribeToPosts(
       INITIAL_LIMIT,
-      authorId,
+      authorIdOrIds,
       (posts) => {
         set({
           posts,
@@ -54,7 +54,7 @@ export const usePostStore = create<PostState>((set, get) => ({
     };
   },
 
-  fetchMorePosts: (authorId?: string) => {
+  fetchMorePosts: (authorIdOrIds?: string | string[]) => {
     const { isFetchingMore, hasMore, limitCount } = get();
 
     // Nếu đang tải thêm hoặc không còn bài, thì bỏ qua
@@ -69,7 +69,7 @@ export const usePostStore = create<PostState>((set, get) => ({
 
     unsubscribeSnapshot = PostService.subscribeToPosts(
       newLimit,
-      authorId,
+      authorIdOrIds,
       (posts) => {
         set({
           posts,

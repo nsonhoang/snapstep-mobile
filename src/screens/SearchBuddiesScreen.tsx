@@ -1,128 +1,193 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, FlatList, Pressable, Image, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { SearchBar } from '../components/SearchBar';
 import { BuddySkeleton } from '../components/BuddySkeleton';
+import { BuddySearchItem } from '../components/BuddySearchItem';
+import { InvitedBuddyItem } from '../components/InvitedBuddyItem';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import { useAuthStore } from '../stores/authStore';
+import { useFriendshipStore } from '../stores/friendshipStore';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SearchBuddies'>;
 
-interface Buddy {
-  id: string;
-  name: string;
-  mutual: string;
-  avatar: string;
-}
-
-const MOCK_BUDDIES: Buddy[] = [
-  { id: '1', name: 'Alice Nguyen gsdgsdgsdfg', mutual: '12 mutual friends', avatar: 'https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=250' },
-  { id: '2', name: 'Bob Tran', mutual: 'Travel Crew member', avatar: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?q=80&w=250' },
-  { id: '3', name: 'Charlie', mutual: '2 mutual friends', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=250' },
-];
- const MOCK_INVITED: Buddy[] = [
-  { id: '1', name: 'Alice Nguyen fsadgfsdgsgdgsdgfsdgsdfsdfsdfdfds', mutual: '12 mutual friends', avatar: 'https://images.unsplash.com/photo-1524250502761-1ac6f2e30d43?q=80&w=250' },
-  { id: '2', name: 'Bob Tran', mutual: 'Travel Crew member', avatar: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?q=80&w=250' },
-  { id: '3', name: 'Charlie', mutual: '2 mutual friends', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=250' },
-];
-
 export const SearchBuddiesScreen = ({ navigation }: Props): React.JSX.Element => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuthStore();
+  const currentUserId = user?.uid || '';
 
+  const {
+    relationships,
+    incomingRequests,
+    searchResults,
+    isSearching,
+    isLoading,
+    searchUsers,
+    clearSearch,
+    sendRequest,
+    cancelRequest,
+    acceptRequest,
+    rejectRequest,
+    subscribeFriends,
+  } = useFriendshipStore();
+
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Lắng nghe cập nhật danh sách bạn bè & lời mời thời gian thực
   useEffect(() => {
+    if (!currentUserId) return;
+    const unsubscribe = subscribeFriends(currentUserId);
+    return () => unsubscribe();
+  }, [currentUserId]);
+
+  // Xử lý tìm kiếm với cơ chế debounce 400ms
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      clearSearch();
+      return;
+    }
+
     const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
+      searchUsers(searchQuery, currentUserId);
+    }, 400);
+
     return () => clearTimeout(timer);
-  }, []);
+  }, [searchQuery, currentUserId]);
 
-  const renderBuddy = ({ item }: { item: Buddy }) => (
-    
-    <View style={styles.buddyItem}>
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
-      <View style={styles.infoContainer}>
-        <Text style={styles.name}>{item.name}</Text>
-        {/* <Text style={styles.mutual}>{item.mutual}</Text> */}
-      </View>
-      <Pressable style={styles.addBtn}>
-        <Text style={styles.addBtnText}>Add</Text>
-      </Pressable>
-    </View>
+  // Xử lý các thao tác kết bạn
+  const handleAdd = useCallback(
+    (targetUid: string) => {
+      if (!currentUserId) return;
+      sendRequest(currentUserId, targetUid);
+    },
+    [currentUserId, sendRequest]
   );
 
-  const renderInvited = ({ item }: { item: Buddy }) => (
-    <View style={styles.buddyItem}>
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
-      <View style={styles.infoContainer}>
-        <Text style={styles.name} numberOfLines={2} ellipsizeMode="tail">{item.name}</Text>
-        {/* <Text style={styles.mutual}>{item.mutual}</Text> */}
-      </View>
-    <View style ={styles.buttonContainer}>
-        <Pressable style={styles.addBtn}>
-        <Text style={styles.addBtnText}>Accept</Text>
-      </Pressable>
-       <Pressable style={styles.deleteBtn}>
-        <Text style={styles.DelBtnText}>Delete</Text>
-      </Pressable>
-    </View>
-    </View>
+  const handleCancel = useCallback(
+    (targetUid: string) => {
+      if (!currentUserId) return;
+      cancelRequest(currentUserId, targetUid);
+    },
+    [currentUserId, cancelRequest]
   );
+
+  const handleAccept = useCallback(
+    (targetUid: string) => {
+      if (!currentUserId) return;
+      acceptRequest(currentUserId, targetUid);
+    },
+    [currentUserId, acceptRequest]
+  );
+
+  const handleReject = useCallback(
+    (targetUid: string) => {
+      if (!currentUserId) return;
+      rejectRequest(currentUserId, targetUid);
+    },
+    [currentUserId, rejectRequest]
+  );
+
+  const isQuerying = searchQuery.trim().length > 0;
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* Thanh tiêu đề Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+        >
           <Ionicons name="chevron-back" size={28} color={Colors.white} />
         </Pressable>
-        <Text style={styles.headerTitle}>Search Buddies</Text>
+        <Text style={styles.headerTitle}>Tìm Bạn Đồng Hành</Text>
         <View style={styles.spacer} />
       </View>
 
+      {/* Ô tìm kiếm */}
       <View style={styles.searchWrapper}>
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search by name or email..."
+          placeholder="Nhập email hoặc tên bạn bè..."
         />
       </View>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionTitle}>Invited</Text>
-        {isLoading ? (
-          <View style={styles.listContent}>
-            {[1, 2].map(key => (
-              <BuddySkeleton key={`inv-${key}`} hasTwoButtons />
-            ))}
-          </View>
-        ) : (
-          <View style={styles.listContent}>
-            {MOCK_INVITED.map(item => (
-              <React.Fragment key={item.id}>
-                {renderInvited({ item })}
-              </React.Fragment>
-            ))}
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Mục 1: Danh sách lời mời nhận được (Invited) */}
+        {!isQuerying && (
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Lời Mời Kết Bạn</Text>
+              {incomingRequests.length > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{incomingRequests.length}</Text>
+                </View>
+              )}
+            </View>
+
+            {isLoading ? (
+              <View>
+                {[1, 2].map((k) => (
+                  <BuddySkeleton key={`inv-skel-${k}`} hasTwoButtons />
+                ))}
+              </View>
+            ) : incomingRequests.length > 0 ? (
+              incomingRequests.map((item) => (
+                <InvitedBuddyItem
+                  key={item.id}
+                  user={item}
+                  onAccept={() => handleAccept(item.id)}
+                  onDelete={() => handleReject(item.id)}
+                />
+              ))
+            ) : (
+              <Text style={styles.emptyText}>Chưa có lời mời kết bạn nào</Text>
+            )}
           </View>
         )}
 
-        <Text style={styles.sectionTitle}>Suggested</Text>
-        {isLoading ? (
-          <View style={styles.listContent}>
-            {[1, 2, 3, 4].map(key => (
-              <BuddySkeleton key={`sug-${key}`} />
-            ))}
-          </View>
-        ) : (
-          <View style={styles.listContent}>
-            {MOCK_BUDDIES.map(item => (
-              <React.Fragment key={item.id}>
-                {renderBuddy({ item })}
-              </React.Fragment>
-            ))}
-          </View>
-        )}
+        {/* Mục 2: Kết quả tìm kiếm hoặc Gợi ý */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>
+            {isQuerying ? 'Kết Quả Tìm Kiếm' : 'Gợi Ý Bạn Bè'}
+          </Text>
+
+          {isSearching ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={Colors.primary} />
+              <Text style={styles.loadingText}>Đang tìm kiếm...</Text>
+            </View>
+          ) : isQuerying ? (
+            searchResults.length > 0 ? (
+              searchResults.map((item) => {
+                const rel = relationships[item.id];
+                return (
+                  <BuddySearchItem
+                    key={item.id}
+                    user={item}
+                    relationshipStatus={rel?.status}
+                    onAdd={() => handleAdd(item.id)}
+                    onCancel={() => handleCancel(item.id)}
+                    onAccept={() => handleAccept(item.id)}
+                  />
+                );
+              })
+            ) : (
+              <Text style={styles.emptyText}>
+                Không tìm thấy người dùng phù hợp với "{searchQuery}"
+              </Text>
+            )
+          ) : (
+            <Text style={styles.emptyText}>
+              Nhập email hoặc tên vào thanh tìm kiếm ở trên để kết nối
+            </Text>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -144,83 +209,68 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '700',
     color: Colors.white,
     textAlign: 'center',
   },
   spacer: {
-    width: 36, // to balance the chevron icon and center the title
+    width: 36,
   },
   searchWrapper: {
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
-  sectionTitle: {
-    color: Colors.textMuted,
-    fontSize: 14,
-    fontWeight: '600',
-    paddingHorizontal: 20,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  listContent: {
+  scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  buddyItem: {
+  sectionContainer: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    gap: 8,
+    marginBottom: 12,
   },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: Colors.surface,
-  },
-  infoContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  name: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  mutual: {
-    fontSize: 13,
+  sectionTitle: {
     color: Colors.textMuted,
-    marginTop: 2,
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  buttonContainer:{
-    gap:5,
+  badge: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  badgeText: {
+    color: Colors.black,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  emptyText: {
+    color: Colors.textMuted,
+    fontSize: 13,
+    fontStyle: 'italic',
+    paddingVertical: 12,
+    textAlign: 'center',
+  },
+  loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 20,
   },
-  addBtn: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+  loadingText: {
+    color: Colors.textMuted,
+    fontSize: 13,
   },
-  addBtnText: {
-    color: Colors.black,
-    fontWeight: '700',
-    fontSize: 14,
+  pressed: {
+    opacity: 0.7,
   },
-   deleteBtn: {
-    borderWidth: 1,
-    
-    borderColor: Colors.white,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-   },
-   DelBtnText:{
-    color: Colors.white,
-    fontWeight: '700',
-    fontSize: 14,
-   }
 });

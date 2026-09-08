@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { StyleSheet, View, Image } from "react-native";
 import { Marker } from "react-native-maps";
+import { useIsFocused } from "@react-navigation/native";
 import { Colors } from "../constants/Colors";
 import { PostWithId } from "../services/postService";
 
@@ -14,12 +15,29 @@ export const MapMarkerItem = ({
   onPress,
 }: MapMarkerItemProps): React.JSX.Element => {
   const [loaded, setLoaded] = useState(false);
+  const isFocused = useIsFocused();
+
+  // Reset state loaded khi màn hình focus lại
+  // để ép Image báo onLoad() lại một lần nữa
+  useEffect(() => {
+    if (isFocused) {
+      setLoaded(false);
+    }
+  }, [isFocused]);
 
   return (
     <Marker
-      key={`${post.id}-${loaded}`}
-      coordinate={{ latitude: post.location?.latitude || 0, longitude: post.location?.longitude || 0 }}
+      // Đổi key dựa trên isFocused:
+      // Kỹ thuật này ép React xóa sổ hoàn toàn Marker cũ ở tầng Native
+      // và tạo mới 100% khi bạn quay lại màn hình.
+      // Không còn bất kỳ data rác hay lỗi kẹt cảm ứng nào có thể xảy ra!
+      key={`${post.id}-${isFocused}`}
+      coordinate={{
+        latitude: post.location?.latitude || 0,
+        longitude: post.location?.longitude || 0,
+      }}
       onPress={onPress}
+      tracksViewChanges={!loaded}
     >
       <View style={styles.customMarker}>
         <View style={styles.markerImageContainer}>

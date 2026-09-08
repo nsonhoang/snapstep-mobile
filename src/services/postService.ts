@@ -46,26 +46,70 @@ export interface Location {
   address: string | null;
 }
 
+interface FirestoreTimestampLike {
+  toMillis?: () => number;
+  toDate?: () => Date;
+  seconds?: number;
+}
+
+interface FirestoreQueryError extends Error {
+  code?: string;
+}
+
+// Hàm trợ giúp chuyển đổi thời gian Firestore an toàn (Tuân thủ Zero any policy)
+const getTimestampMillis = (
+  createdAt: Timestamp | FieldValue | FirestoreTimestampLike | undefined,
+): number => {
+  if (!createdAt) return Date.now();
+  const ts = createdAt as FirestoreTimestampLike;
+  if (typeof ts.toMillis === "function") return ts.toMillis();
+  if (typeof ts.toDate === "function") return ts.toDate().getTime();
+  if (typeof ts.seconds === "number") return ts.seconds * 1000;
+  return 0;
+};
+
 export const PostService = {
   // Lắng nghe Realtime danh sách Post với onSnapshot
   subscribeToPosts: (
     limitCount: number,
-    authorId: string | undefined,
+    authorIdOrIds: string | string[] | undefined,
     onUpdate: (posts: PostWithId[]) => void,
   ) => {
     const db = getFirestore();
     const postsRef = collection(db, "posts");
     let q;
 
-    if (authorId) {
+    if (Array.isArray(authorIdOrIds)) {
+      if (authorIdOrIds.length === 0) {
+        onUpdate([]);
+        return () => {};
+      }
+      // Giới hạn tối đa 30 phần tử theo quy định của Firestore
+      const validIds = authorIdOrIds.slice(0, 30);
+      if (validIds.length === 1) {
+        // Với 1 tác giả duy nhất (thường là chính mình), dùng '==' thay vì 'in'
+        q = query(
+          postsRef,
+          where("authorId", "==", validIds[0]),
+          limit(limitCount),
+        );
+      } else {
+        q = query(
+          postsRef,
+          where("authorId", "in", validIds),
+          limit(limitCount),
+        );
+      }
+    } else if (authorIdOrIds) {
       q = query(
         postsRef,
-        where("authorId", "==", authorId),
-        orderBy("createdAt", "desc"),
+        where("authorId", "==", authorIdOrIds),
         limit(limitCount),
       );
     } else {
-      q = query(postsRef, orderBy("createdAt", "desc"), limit(limitCount));
+      // Khi không truyền authorId, không query tự do để tránh vi phạm Security Rules (permission-denied)
+      onUpdate([]);
+      return () => {};
     }
 
     const unsubscribe = onSnapshot(
@@ -81,10 +125,16 @@ export const PostService = {
           ...doc.data(),
         })) as PostWithId[];
 
+        // Sắp xếp bài viết giảm dần theo thời gian tạo (mới nhất lên đầu)
+        posts.sort(
+          (a, b) =>
+            getTimestampMillis(b.createdAt) - getTimestampMillis(a.createdAt),
+        );
+
         onUpdate(posts);
       },
-      (error) => {
-        console.error("Lỗi Realtime Posts:", error);
+      (error: FirestoreQueryError) => {
+        console.error("Lỗi Realtime Posts:", error.code, error.message, error);
       },
     );
 
@@ -94,21 +144,36 @@ export const PostService = {
   // Hàm tải lần đầu
   getPosts: async (
     limitCount: number,
-    authorId?: string,
+    authorIdOrIds?: string | string[],
   ): Promise<{ posts: PostWithId[]; lastDoc: DocumentSnapshot | null }> => {
     const db = getFirestore();
     const postsRef = collection(db, "posts");
     let q;
 
-    if (authorId) {
+    if (Array.isArray(authorIdOrIds)) {
+      if (authorIdOrIds.length === 0) return { posts: [], lastDoc: null };
+      const validIds = authorIdOrIds.slice(0, 30);
+      if (validIds.length === 1) {
+        q = query(
+          postsRef,
+          where("authorId", "==", validIds[0]),
+          limit(limitCount),
+        );
+      } else {
+        q = query(
+          postsRef,
+          where("authorId", "in", validIds),
+          limit(limitCount),
+        );
+      }
+    } else if (authorIdOrIds) {
       q = query(
         postsRef,
-        where("authorId", "==", authorId),
-        orderBy("createdAt", "desc"),
+        where("authorId", "==", authorIdOrIds),
         limit(limitCount),
       );
     } else {
-      q = query(postsRef, orderBy("createdAt", "desc"), limit(limitCount));
+      return { posts: [], lastDoc: null };
     }
 
     const snapshot = await getDocs(q);
@@ -118,6 +183,12 @@ export const PostService = {
       id: doc.id,
       ...doc.data(),
     })) as PostWithId[];
+
+    // Sắp xếp bài viết giảm dần theo thời gian tạo
+    posts.sort(
+      (a, b) =>
+        getTimestampMillis(b.createdAt) - getTimestampMillis(a.createdAt),
+    );
 
     return { posts, lastDoc: snapshot.docs[snapshot.docs.length - 1] };
   },
@@ -126,27 +197,39 @@ export const PostService = {
   getMorePosts: async (
     limitCount: number,
     lastDocSnap: DocumentSnapshot,
-    authorId?: string,
+    authorIdOrIds?: string | string[],
   ): Promise<{ posts: PostWithId[]; lastDoc: DocumentSnapshot | null }> => {
     const db = getFirestore();
     const postsRef = collection(db, "posts");
     let q;
 
-    if (authorId) {
+    if (Array.isArray(authorIdOrIds)) {
+      if (authorIdOrIds.length === 0) return { posts: [], lastDoc: null };
+      const validIds = authorIdOrIds.slice(0, 30);
+      if (validIds.length === 1) {
+        q = query(
+          postsRef,
+          where("authorId", "==", validIds[0]),
+          startAfter(lastDocSnap),
+          limit(limitCount),
+        );
+      } else {
+        q = query(
+          postsRef,
+          where("authorId", "in", validIds),
+          startAfter(lastDocSnap),
+          limit(limitCount),
+        );
+      }
+    } else if (authorIdOrIds) {
       q = query(
         postsRef,
-        where("authorId", "==", authorId),
-        orderBy("createdAt", "desc"),
+        where("authorId", "==", authorIdOrIds),
         startAfter(lastDocSnap),
         limit(limitCount),
       );
     } else {
-      q = query(
-        postsRef,
-        orderBy("createdAt", "desc"),
-        startAfter(lastDocSnap),
-        limit(limitCount),
-      );
+      return { posts: [], lastDoc: null };
     }
 
     const snapshot = await getDocs(q);
@@ -156,6 +239,12 @@ export const PostService = {
       id: doc.id,
       ...doc.data(),
     })) as PostWithId[];
+
+    // Sắp xếp bài viết giảm dần theo thời gian tạo
+    posts.sort(
+      (a, b) =>
+        getTimestampMillis(b.createdAt) - getTimestampMillis(a.createdAt),
+    );
 
     return { posts, lastDoc: snapshot.docs[snapshot.docs.length - 1] };
   },

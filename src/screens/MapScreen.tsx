@@ -1,14 +1,14 @@
-import React, { useEffect, useState } from "react";
-import { StyleSheet, View, Text, Platform, Pressable } from "react-native";
-import MapView, { PROVIDER_DEFAULT, Region } from "react-native-maps";
+import React, { useState, useMemo, useRef } from "react";
+import { StyleSheet, View, Pressable } from "react-native";
+import MapView, { PROVIDER_DEFAULT } from "react-native-maps";
 import { Colors } from "../constants/Colors";
 import { MapScreenProps } from "../navigation/types";
 import { PostWithId } from "../services/postService";
 import { MapMarkerItem } from "../components/MapMarkerItem";
-import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
-import { AlertProvider } from "../components/AlertProvider";
 import { useAlert } from "../components/AlertProvider";
+import { usePostStore } from "../stores/postStore";
 
 export const MAP_DARK_STYLE = [
   {
@@ -75,57 +75,6 @@ export const MAP_DARK_STYLE = [
   },
 ];
 
-import { Timestamp } from "@react-native-firebase/firestore";
-
-const mockTimestamp = Timestamp.now();
-
-const MAP_POSTS: PostWithId[] = [
-  {
-    id: "post-1",
-    authorId: "13",
-    imageUrl:
-      "https://images.unsplash.com/photo-1540611025311-01df3cef54b5?q=80&w=800",
-    location: { address: "Sa Pa", latitude: 22.3364, longitude: 103.8438 },
-    caption: "Săn mây ngắm ruộng bậc thang Mường Hoa 🌾",
-    tripId: "mock-trip",
-    createdAt: mockTimestamp,
-    updateAt: mockTimestamp,
-  },
-  {
-    id: "post-2",
-    authorId: "22",
-    imageUrl:
-      "https://cdn-media.sforum.vn/storage/app/media/wp-content/uploads/2024/01/dia-diem-du-lich-o-ha-noi-thumb.jpg",
-    location: { address: "Ha Noi", latitude: 21.0285, longitude: 105.8542 },
-    caption: "Nắng sớm thu Hà Nội bên Tháp Rùa ☀️",
-    tripId: "mock-trip",
-    createdAt: mockTimestamp,
-    updateAt: mockTimestamp,
-  },
-  {
-    id: "post-5",
-    authorId: "11",
-    imageUrl:
-      "https://vcdn1-dulich.vnecdn.net/2022/06/01/Hoi-An-VnExpress-5851-16488048-4863-2250-1654057244.jpg?w=0&h=0&q=100&dpr=2&fit=crop&s=k1SeSD7zn2e69TSWKfpoag",
-    location: { address: "Hoi An", latitude: 15.8801, longitude: 108.338 },
-    caption: "Thả hoa đăng cầu may trên sông Hoài ✨",
-    tripId: "mock-trip",
-    createdAt: mockTimestamp,
-    updateAt: mockTimestamp,
-  },
-  {
-    id: "NMhnudYsK7hN3CdbpQ4FyFkcdMn2",
-    authorId: "NMhnudYsK7hN3CdbpQ4FyFkcdMn2",
-    imageUrl:
-      "https://images.unsplash.com/photo-1583417319070-4a69db38a482?q=80&w=800",
-    location: { address: "Da Lat", latitude: 11.9404, longitude: 108.4583 },
-    caption: "Đón hừng đông rực rỡ ở đồi thông Đà Lạt 🌲",
-    tripId: "mock-trip",
-    createdAt: mockTimestamp,
-    updateAt: mockTimestamp,
-  },
-];
-
 export const MapScreen = ({
   navigation,
 }: MapScreenProps): React.JSX.Element => {
@@ -133,9 +82,34 @@ export const MapScreen = ({
     null,
   );
   const { showAlert } = useAlert();
+  const { posts } = usePostStore();
+
+  const mapRef = useRef<MapView>(null);
+
+  // Lọc chỉ những bài viết có tọa độ VÀ đăng trong vòng 24h
+  const mapMarkers = useMemo(() => {
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+    return posts.filter((post) => {
+      // 1. Phải có tọa độ hợp lệ
+      if (!post.location?.latitude || !post.location?.longitude) return false;
+
+      // 2. Phải đăng trong vòng 24 giờ
+      let postTime = now; // Mặc định là hiện tại (dành cho bài vừa đăng, server chưa kịp trả về timestamp)
+      if (
+        post.createdAt &&
+        typeof (post.createdAt as any).toMillis === "function"
+      ) {
+        postTime = (post.createdAt as any).toMillis();
+      }
+
+      return now - postTime <= TWENTY_FOUR_HOURS;
+    });
+  }, [posts]);
 
   const handleCalloutPress = (post: PostWithId) => {
-    navigation.navigate("PostDetail", { post, posts: MAP_POSTS });
+    navigation.navigate("PostDetail", { post, posts: mapMarkers });
     console.log("Callout pressed");
   };
 
@@ -146,7 +120,6 @@ export const MapScreen = ({
 
   const handleMyLocationPress = async () => {
     console.log("My location pressed");
-    // này sau cài thư viện location
 
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") {
@@ -169,11 +142,23 @@ export const MapScreen = ({
       return;
     }
     setLocation(currentLocation);
+
+    // Lia bản đồ về vị trí hiện tại
+    mapRef.current?.animateToRegion(
+      {
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+        latitudeDelta: 0.05, // Zoom gần lại hơn một chút để rõ
+        longitudeDelta: 0.05,
+      },
+      1000,
+    );
   };
 
   return (
     <View style={styles.container}>
       <MapView
+        ref={mapRef}
         provider={PROVIDER_DEFAULT}
         showsMyLocationButton={false}
         showsUserLocation={true}
@@ -187,7 +172,7 @@ export const MapScreen = ({
         customMapStyle={MAP_DARK_STYLE}
         userInterfaceStyle="dark"
       >
-        {MAP_POSTS.map((post) => (
+        {mapMarkers.map((post) => (
           <MapMarkerItem
             key={post.id}
             post={post}

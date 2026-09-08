@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // 1. CÁC HÀM TRỢ GIÚP KIỂM TRA ĐIỀU KIỆN (HELPER FUNCTIONS)
+    // =========================================================================
+
+    // Kiểm tra: Người dùng đã đăng nhập Firebase Auth hay chưa?
+    function daDangNhap() {
+      return request.auth != null;
+    }
+
+    // Kiểm tra: Có phải chính chủ sở hữu tài khoản này không?
+    function laChinhChu(userId) {
+      return daDangNhap() && request.auth.uid == userId;
+    }
+
+    // Kiểm tra: Người xem có phải là bạn bè đã 'accepted' của tác giả không?
+    function laBanBe(tacGiaUid) {
+      return daDangNhap() && (
+        // Trường hợp 1: Tự mình xem bài viết/chuyến đi của chính mình
+        request.auth.uid == tacGiaUid ||
+        
+        // Trường hợp 2: Kiểm tra trong subcollection "friends" của chính người xem
+        (
+          exists(/databases/$(database)/documents/friendships/$(request.auth.uid)/friends/$(tacGiaUid)) &&
+          get(/databases/$(database)/documents/friendships/$(request.auth.uid)/friends/$(tacGiaUid)).data.status == 'accepted'
+        ) ||
+
+        // Trường hợp 3: Kiểm tra trong subcollection "friends" của tác giả
+        (
+          exists(/databases/$(database)/documents/friendships/$(tacGiaUid)/friends/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/friendships/$(tacGiaUid)/friends/$(request.auth.uid)).data.status == 'accepted'
+        )
+      );
+    }
+
+
+    // =========================================================================
+    // 2. BẢO MẬT COLLECTION "users" (HỒ SƠ CÁ NHÂN)
+    // =========================================================================
+    match /users/{userId} {
+      // ĐỌC: Bất kỳ ai đã đăng nhập đều đọc được (để xem tên, avatar, tìm kiếm bạn bè)
+      allow read: if daDangNhap();
+
+      // TẠO & SỬA: Chỉ chính chủ userId mới được sửa thông tin cá nhân của mình
+      allow create, update: if laChinhChu(userId);
+
+      // XÓA: Cấm tuyệt đối xóa user trực tiếp từ app (chỉ admin mới có quyền)
+      allow delete: if false;
+    }
+
+
+    // =========================================================================
+    // 3. BẢO MẬT COLLECTION "posts" (BÀI ĐĂNG & ẢNH CHECK-IN)
+    // =========================================================================
+    match /posts/{postId} {
+      // ĐỌC: CHỈ TÁC GIẢ HOẶC BẠN BÈ ĐÃ KẾT BẠN MỚI ĐƯỢC XEM BÀI
+      allow read: if laBanBe(resource.data.authorId);
+
+      // TẠO MỚI: Bắt buộc người đăng bài phải gán authorId trùng khớp với UID của mình
+      allow create: if daDangNhap() && request.resource.data.authorId == request.auth.uid;
+
+      // CẬP NHẬT: 
+      // - Hoặc chính tác giả sửa bài
+      // - Hoặc bạn bè chỉ được phép cập nhật số lượng cảm xúc (like, love, hate, haha)
+      allow update: if daDangNhap() && (
+        laChinhChu(resource.data.authorId) ||
+        (
+          laBanBe(resource.data.authorId) && 
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['like', 'love', 'hate', 'haha'])
+        )
+      );
+
+      // XÓA BÀI: Chỉ chính tác giả mới được xóa bài của mình
+      allow delete: if laChinhChu(resource.data.authorId);
+    }
+
+
+    // =========================================================================
+    // 4. BẢO MẬT COLLECTION "trips" (HÀNH TRÌNH CHUYẾN ĐI)
+    // =========================================================================
+    match /trips/{tripId} {
+      // ĐỌC: CHỈ CHỦ CHUYẾN ĐI HOẶC BẠN BÈ MỚI ĐƯỢC XEM LỊCH TRÌNH
+      allow read: if laBanBe(resource.data.userId);
+
+      // TẠO MỚI: Phải gán đúng userId của chính mình
+      allow create: if daDangNhap() && request.resource.data.userId == request.auth.uid;
+
+      // SỬA & XÓA: Chỉ người tạo chuyến đi mới có quyền chỉnh sửa hoặc xóa
+      allow update, delete: if laChinhChu(resource.data.userId);
+    }
+
+
+    // =========================================================================
+    // 5. BẢO MẬT SUBCOLLECTION "friendships" (QUAN HỆ BẠN BÈ)
+    // Đường dẫn: friendships/{userId}/friends/{friendId}
+    // =========================================================================
+    match /friendships/{userId}/friends/{friendId} {
+      // ĐỌC: Chỉ chính chủ userId mới xem được danh sách bạn bè riêng tư của mình
+      allow read: if laChinhChu(userId);
+
+      // GHI (Tạo, Sửa, Xóa): Cho phép 1 trong 2 người thực hiện
+      allow write: if daDangNhap() && (request.auth.uid == userId || request.auth.uid == friendId);
+    }
+  }
+}

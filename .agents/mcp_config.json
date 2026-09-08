@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "firebase": {
+      "command": "cmd.exe",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "firebase-tools@latest",
+        "experimental:mcp",
+        "--dir",
+        "d:\\Tuhoc\\native\\SnapStep"
+      ]
+    }
+  }
+}
