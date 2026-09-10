@@ -9,6 +9,7 @@ import { FriendshipStatus } from '../services/friendshipService';
 interface BuddySearchItemProps {
   user: UserWithId;
   relationshipStatus?: FriendshipStatus;
+  isCurrentUser?: boolean;
   onAdd: () => void;
   onCancel: () => void;
   onAccept: () => void;
@@ -17,6 +18,7 @@ interface BuddySearchItemProps {
 export const BuddySearchItem = ({
   user,
   relationshipStatus,
+  isCurrentUser,
   onAdd,
   onCancel,
   onAccept,
@@ -28,6 +30,15 @@ export const BuddySearchItem = ({
 
   // Hiển thị nút bấm tương ứng theo trạng thái kết bạn
   const renderActionButton = () => {
+    // Nếu là chính bản thân mình thì hiển thị nhãn nhận diện, tuyệt đối không hiển thị nút kết bạn
+    if (isCurrentUser) {
+      return (
+        <View style={styles.selfBadge}>
+          <Text style={styles.selfBadgeText}>Bạn</Text>
+        </View>
+      );
+    }
+
     switch (relationshipStatus) {
       case 'accepted':
         return (
@@ -186,6 +197,19 @@ const styles = StyleSheet.create({
   },
   friendsBadgeText: {
     color: Colors.primary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  selfBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  selfBadgeText: {
+    color: Colors.textMuted,
     fontSize: 12,
     fontWeight: '600',
   },

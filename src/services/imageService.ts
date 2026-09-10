@@ -46,6 +46,30 @@ export const ImageService = {
     }
   },
 
+  // Tải ảnh đại diện lên thư mục avatars/{userId}/
+  uploadAvatar: async (
+    fileUri: string,
+    userId: string,
+  ): Promise<string | null> => {
+    try {
+      console.log("Bắt đầu đẩy ảnh đại diện lên Firebase Storage...");
+      const filename = `avatar_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+      const path = `avatars/${userId}/${filename}`;
+
+      const storage = getStorage();
+      const reference = ref(storage, path);
+      const task = putFile(reference, fileUri);
+
+      await task;
+      const url = await getDownloadURL(reference);
+      console.log("Upload avatar thành công! Link ảnh:", url);
+      return url;
+    } catch (error) {
+      console.error("Lỗi Upload Avatar Firebase Storage:", error);
+      return null;
+    }
+  },
+
   deleteImage: async (imageUrl: string): Promise<boolean> => {
     if (!imageUrl || !imageUrl.includes("firebase")) return false;
 

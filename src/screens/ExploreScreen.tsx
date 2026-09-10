@@ -46,10 +46,15 @@ export const ExploreScreen = ({
       const userQuery = await getDoc(doc(db, "users", user?.uid));
 
       if (!userQuery.exists()) {
+        // Trích xuất tên từ email (ví dụ: hoangson@gmail.com -> hoangson)
+        const emailName = user?.email ? user.email.split('@')[0] : 'Explorer';
+        const defaultName = user?.displayName || emailName;
+
         const newUser: User = {
-          firstName: user?.displayName || "",
-          lastName: "",
-          email: user?.email || "",
+          firstName: defaultName,
+          lastName: defaultName,
+          username: emailName,
+          email: user?.email || '',
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           ghostMode: false,
@@ -99,10 +104,10 @@ export const ExploreScreen = ({
     };
   }, [user?.uid, subscribeFriends]);
 
-  // Danh sách tác giả được phép xem: chính mình + bạn bè đã accepted
+  // Danh sách tác giả được phép xem: chính mình + bạn bè đã accepted (đảm bảo ID duy nhất)
   const allowedAuthorIds = useMemo(() => {
     if (!user?.uid) return [];
-    return [user.uid, ...friends.map((f) => f.id)];
+    return Array.from(new Set([user.uid, ...friends.map((f) => f.id)]));
   }, [user?.uid, friends]);
 
   // Lắng nghe Realtime các bài viết của chính mình và bạn bè
@@ -114,18 +119,22 @@ export const ExploreScreen = ({
     };
   }, [allowedAuthorIds, subscribePosts]);
 
-  // Tạo các chip lọc động từ danh sách bạn bè thật
+  // Tạo các chip lọc động từ danh sách bạn bè thật (ngăn chặn hoàn toàn trùng lặp key)
   const filterChips: FilterChipItem[] = useMemo(() => {
+    const myId = user?.uid || "me";
     const chips: FilterChipItem[] = [
       { id: "all", label: "Tất cả" },
       {
-        id: user?.uid || "me",
+        id: myId,
         label: "Me",
         avatar: user?.photoURL || undefined,
       },
     ];
 
     friends.forEach((f) => {
+      // Bỏ qua nếu là chính mình để tránh trùng key với chip "Me"
+      if (f.id === myId || f.id === user?.uid) return;
+
       chips.push({
         id: f.id,
         label: f.firstName || f.email?.split("@")[0] || "Bạn",

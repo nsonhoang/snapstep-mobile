@@ -33,20 +33,22 @@ export const FriendsScreen = (): React.JSX.Element => {
     return () => unsubscribe();
   }, [currentUserId]);
 
-  // Chuyển đổi danh sách bạn bè thật sang format ChatItem để hiển thị
+  // Chuyển đổi danh sách bạn bè thật sang format ChatItem để hiển thị (loại trừ chính mình nếu có)
   const chatsList: Chat[] = useMemo(() => {
-    return friends.map((friend) => ({
-      id: friend.id,
-      name: `${friend.firstName || ''} ${friend.lastName || ''}`.trim() || friend.email || 'Bạn bè',
-      lastMessage: 'Đã kết nối bạn đồng hành!',
-      time: 'Vừa xong',
-      unread: 0,
-      avatar:
-        friend.avatarUrl ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=250',
-      isOnline: true,
-    }));
-  }, [friends]);
+    return friends
+      .filter((friend) => friend.id !== currentUserId)
+      .map((friend) => ({
+        id: friend.id,
+        name: `${friend.firstName || ''} ${friend.lastName || ''}`.trim() || friend.email || 'Bạn bè',
+        lastMessage: 'Đã kết nối bạn đồng hành!',
+        time: 'Vừa xong',
+        unread: 0,
+        avatar:
+          friend.avatarUrl ||
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=250',
+        isOnline: true,
+      }));
+  }, [friends, currentUserId]);
 
   // Lọc theo từ khóa tìm kiếm
   const filteredChats = useMemo(() => {

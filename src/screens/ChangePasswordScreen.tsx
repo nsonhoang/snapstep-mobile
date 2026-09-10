@@ -1,20 +1,40 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, Pressable, ScrollView, Alert } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import {
+  getAuth,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
+} from '@react-native-firebase/auth';
 import { Colors } from '../constants/Colors';
 import { ChangePasswordScreenProps } from '../navigation/types';
 import { CustomInput } from '../components/CustomInput';
+
+interface AuthError extends Error {
+  code?: string;
+}
 
 export const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps): React.JSX.Element => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleUpdatePassword = () => {
-    // Logic kiểm tra tính hợp lệ cơ bản
+  // Xử lý xác thực mật khẩu cũ và cập nhật mật khẩu mới qua Firebase Auth
+  const handleUpdatePassword = async () => {
+    // 1. Kiểm tra tính hợp lệ cơ bản
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin.');
+      Alert.alert('Lỗi', 'Vui lòng điền đầy đủ tất cả các trường.');
       return;
     }
     
@@ -28,10 +48,52 @@ export const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps):
       return;
     }
 
-    // Xử lý gọi API cập nhật mật khẩu ở đây
-    Alert.alert('Thành công', 'Mật khẩu của bạn đã được cập nhật.', [
-      { text: 'OK', onPress: () => navigation.goBack() }
-    ]);
+    if (currentPassword === newPassword) {
+      Alert.alert('Lỗi', 'Mật khẩu mới không được trùng với mật khẩu hiện tại.');
+      return;
+    }
+
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+
+    if (!currentUser || !currentUser.email) {
+      Alert.alert('Lỗi', 'Không tìm thấy phiên đăng nhập. Vui lòng đăng nhập lại.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // 2. Xác thực lại danh tính bằng mật khẩu cũ (Re-authentication)
+      const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
+      await reauthenticateWithCredential(currentUser, credential);
+
+      // 3. Cập nhật mật khẩu mới trên Firebase Auth
+      await updatePassword(currentUser, newPassword);
+
+      setIsLoading(false);
+      Alert.alert('Thành công', 'Mật khẩu của bạn đã được cập nhật thành công.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (error) {
+      setIsLoading(false);
+      console.error('Lỗi khi đổi mật khẩu:', error);
+
+      const authErr = error as AuthError;
+      if (
+        authErr.code === 'auth/wrong-password' ||
+        authErr.code === 'auth/invalid-credential' ||
+        authErr.code === 'auth/invalid-password'
+      ) {
+        Alert.alert('Lỗi', 'Mật khẩu hiện tại không chính xác. Vui lòng kiểm tra lại.');
+      } else if (authErr.code === 'auth/weak-password') {
+        Alert.alert('Lỗi', 'Mật khẩu mới quá yếu. Vui lòng nhập mật khẩu an toàn hơn.');
+      } else if (authErr.code === 'auth/requires-recent-login') {
+        Alert.alert('Lỗi', 'Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất và đăng nhập lại để thực hiện.');
+      } else {
+        Alert.alert('Lỗi', 'Đã xảy ra sự cố khi đổi mật khẩu. Vui lòng thử lại sau.');
+      }
+    }
   };
 
   return (
@@ -51,7 +113,7 @@ export const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps):
         contentInsetAdjustmentBehavior="automatic"
       >
         <Text style={styles.descriptionText}>
-          Mật khẩu của bạn phải có ít nhất 6 ký tự và nên bao gồm sự kết hợp giữa số, chữ cái và ký tự đặc biệt.
+          Mật khẩu của bạn phải có ít nhất 6 ký tự và nên bao gồm sự kết hợp giữa số, chữ cái và ký tự đặc biệt để đảm bảo an toàn.
         </Text>
 
         <View style={styles.formSection}>
@@ -88,8 +150,16 @@ export const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps):
 
         {/* Nút cập nhật mật khẩu */}
         <View style={styles.buttonContainer}>
-          <Pressable style={styles.submitButton} onPress={handleUpdatePassword}>
-            <Text style={styles.submitButtonText}>Cập nhật mật khẩu</Text>
+          <Pressable 
+            style={[styles.submitButton, isLoading && { opacity: 0.7 }]} 
+            onPress={handleUpdatePassword}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color={Colors.white} />
+            ) : (
+              <Text style={styles.submitButtonText}>Cập nhật mật khẩu</Text>
+            )}
           </Pressable>
         </View>
       </ScrollView>

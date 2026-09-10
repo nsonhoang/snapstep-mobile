@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { Timestamp } from "@react-native-firebase/firestore";
+import { getAuth } from "@react-native-firebase/auth";
 import {
   FriendshipService,
   FriendRelationship,
@@ -56,8 +57,11 @@ export const useFriendshipStore = create<FriendshipState>((set, get) => {
 
       set({ isSearching: true });
       try {
-        const results = await UserService.searchUsers(clean, currentUserId);
-        set({ searchResults: results, isSearching: false });
+        const myUid = currentUserId || getAuth().currentUser?.uid || "";
+        const results = await UserService.searchUsers(clean, myUid);
+        // Lọc kỹ phía client để chắc chắn 100% không bao giờ xuất hiện chính mình
+        const filtered = myUid ? results.filter((u) => u.id !== myUid) : results;
+        set({ searchResults: filtered, isSearching: false });
       } catch (error) {
         console.error("Lỗi khi tìm kiếm người dùng:", error);
         set({ isSearching: false });
@@ -149,6 +153,12 @@ export const useFriendshipStore = create<FriendshipState>((set, get) => {
           const incomingUids: string[] = [];
 
           Object.entries(relationshipsMap).forEach(([targetUid, rel]) => {
+            // Tuyệt đối loại bỏ nếu có document tự kết bạn với chính mình
+            if (targetUid === currentUserId) {
+              FriendshipService.unfriend(currentUserId, currentUserId).catch(() => {});
+              return;
+            }
+
             if (rel.status === "accepted") {
               acceptedUids.push(targetUid);
             } else if (rel.status === "incoming_pending") {

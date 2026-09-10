@@ -7,6 +7,7 @@ import { SearchBar } from '../components/SearchBar';
 import { BuddySkeleton } from '../components/BuddySkeleton';
 import { BuddySearchItem } from '../components/BuddySearchItem';
 import { InvitedBuddyItem } from '../components/InvitedBuddyItem';
+import { getAuth } from '@react-native-firebase/auth';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useAuthStore } from '../stores/authStore';
@@ -16,7 +17,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SearchBuddies'>;
 
 export const SearchBuddiesScreen = ({ navigation }: Props): React.JSX.Element => {
   const { user } = useAuthStore();
-  const currentUserId = user?.uid || '';
+  const currentUserId = user?.uid || getAuth().currentUser?.uid || '';
 
   const {
     relationships,
@@ -171,6 +172,7 @@ export const SearchBuddiesScreen = ({ navigation }: Props): React.JSX.Element =>
                     key={item.id}
                     user={item}
                     relationshipStatus={rel?.status}
+                    isCurrentUser={item.id === currentUserId}
                     onAdd={() => handleAdd(item.id)}
                     onCancel={() => handleCancel(item.id)}
                     onAccept={() => handleAccept(item.id)}

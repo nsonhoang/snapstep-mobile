@@ -24,10 +24,6 @@ export const MyPhotoCard = React.memo(
 
           {/* User Overlay */}
           <View style={styles.myPhotoUserOverlay}>
-            <Image
-              source={{ uri: "https://i.pravatar.cc/100" }}
-              style={styles.myPhotoUserAvatar}
-            />
             <Text style={styles.myPhotoUserName}>@Me</Text>
           </View>
 

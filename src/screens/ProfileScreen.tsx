@@ -3,6 +3,8 @@ import { StyleSheet, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../constants/Colors';
 import { useAuthStore } from '../stores/authStore';
+import { useFriendshipStore } from '../stores/friendshipStore';
+import { UserService, UserWithId } from '../services/userService';
 import { ProfileHeader } from '../components/ProfileHeader';
 import { ProfileStats } from '../components/ProfileStats';
 import { MilestoneList } from '../components/MilestoneList';
@@ -15,31 +17,71 @@ import { useNavigation } from '@react-navigation/native';
 
 export const ProfileScreen = (): React.JSX.Element => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { logout } = useAuthStore();
-  const [isLoading, setIsLoading] = useState(true);
+  const { user: authUser, logout } = useAuthStore();
+  const { friends, subscribeFriends } = useFriendshipStore();
 
+  const [profile, setProfile] = useState<UserWithId | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [snapsCount, setSnapsCount] = useState<number>(0);
+  const [tripsCount, setTripsCount] = useState<number>(0);
+
+  // Lắng nghe hồ sơ người dùng và danh sách bạn bè realtime
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1500);
-    return () => clearTimeout(timer);
-  }, []);
-
-   const navigateToNotification = () =>{
-      navigation.navigate('Notifications');
-    }
-  
-
-  
-    const navigateToEditProfile = () =>{
-      navigation.navigate('EditProfile');
-    }
-  
-    const navigateToChangePassword = () =>{
-      navigation.navigate('ChangePassword');
+    if (!authUser?.uid) {
+      setIsLoading(false);
+      return;
     }
 
-    const navigateToHelp = () =>{
-      navigation.navigate('HelpAndSupport');
-    }
+    // Đăng ký realtime lắng nghe thay đổi thông tin người dùng
+    const unsubscribeProfile = UserService.subscribeUserProfile(
+      authUser.uid,
+      (data) => {
+        setProfile(data);
+        setIsLoading(false);
+      },
+    );
+
+    // Đăng ký realtime danh sách bạn bè để hiển thị số lượng BUDDIES chính xác
+    const unsubscribeFriends = subscribeFriends(authUser.uid);
+
+    return () => {
+      unsubscribeProfile();
+      unsubscribeFriends();
+    };
+  }, [authUser?.uid, subscribeFriends]);
+
+  const navigateToNotification = () => {
+    navigation.navigate('Notifications');
+  };
+
+  const navigateToEditProfile = () => {
+    navigation.navigate('EditProfile');
+  };
+
+  const navigateToChangePassword = () => {
+    navigation.navigate('ChangePassword');
+  };
+
+  const navigateToHelp = () => {
+    navigation.navigate('HelpAndSupport');
+  };
+
+  // Tính toán dữ liệu hiển thị thật
+  const emailName = authUser?.email ? authUser.email.split('@')[0] : 'SnapStep Explorer';
+  const rawFirstName = profile?.firstName || authUser?.displayName || emailName;
+  const rawLastName = profile?.lastName || authUser?.displayName || emailName;
+  const displayName =
+    rawLastName === rawFirstName
+      ? rawFirstName
+      : `${rawLastName} ${rawFirstName}`.trim();
+
+  const username = profile?.username || emailName;
+  const bio = profile?.bio;
+  const avatarUrl = profile?.avatarUrl || authUser?.photoURL || undefined;
+
+  const footprints = profile?.stats?.conqueredProvincesCount ?? tripsCount;
+  const snaps = profile?.stats?.totalPhotosCount ?? snapsCount;
+  const buddies = friends.length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -65,17 +107,31 @@ export const ProfileScreen = (): React.JSX.Element => {
           </View>
         ) : (
           <>
-            <ProfileHeader />
+            <ProfileHeader 
+              displayName={displayName}
+              username={username}
+              bio={bio}
+              avatarUrl={avatarUrl}
+              onSettingsPress={navigateToNotification}
+            />
+            <ProfileStats 
+              footprintsCount={footprints}
+              snapsCount={snaps}
+              buddiesCount={buddies}
+            />
             <MilestoneList />
-            <ProfileTabs />
+            <ProfileTabs 
+              userId={authUser?.uid}
+              onSnapsCountChange={setSnapsCount}
+              onTripsCountChange={setTripsCount}
+            />
             <ProfileOptionList 
-            onLogout={logout} 
-            navigateToNotification={navigateToNotification}
-      
-            navigateToEditProfile={navigateToEditProfile}
-            navigateToChangePassword={navigateToChangePassword}
-            navigateToHelp={navigateToHelp}
-             />
+              onLogout={logout} 
+              navigateToNotification={navigateToNotification}
+              navigateToEditProfile={navigateToEditProfile}
+              navigateToChangePassword={navigateToChangePassword}
+              navigateToHelp={navigateToHelp}
+            />
           </>
         )}
       </ScrollView>

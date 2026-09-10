@@ -101,6 +101,10 @@ export const FriendPhotoCard = ({
             />
           ))}
         </View>
+        {/*User overlay*/}
+        <View style={styles.myPhotoUserOverlay}>
+          <Text style={styles.myPhotoUserName}>@{displayName}</Text>
+        </View>
 
         {/* Time Badge (Top Right) */}
         <View style={styles.timeBadge}>
@@ -112,7 +116,9 @@ export const FriendPhotoCard = ({
           {/* Location Badge */}
           <View style={styles.locationPill}>
             <Ionicons name="location" size={14} color={Colors.primary} />
-            <Text style={styles.locationText}>{post.location?.address || "Chưa xác định"}</Text>
+            <Text style={styles.locationText}>
+              {post.location?.address || "Chưa xác định"}
+            </Text>
           </View>
 
           {/* Caption Box */}
@@ -204,6 +210,25 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 12,
     fontWeight: "600",
+  },
+  myPhotoUserOverlay: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  myPhotoUserName: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.white,
   },
   bottomOverlay: {
     position: "absolute",

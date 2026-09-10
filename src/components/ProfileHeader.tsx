@@ -8,11 +8,25 @@ import { Colors } from '../constants/Colors';
 import { RootStackParamList } from '../navigation/types';
 
 interface ProfileHeaderProps {
+  displayName?: string;
+  username?: string;
+  bio?: string;
+  avatarUrl?: string;
   onSettingsPress?: () => void;
 }
 
-export const ProfileHeader = ({ onSettingsPress }: ProfileHeaderProps): React.JSX.Element => {
+export const ProfileHeader = ({
+  displayName,
+  username,
+  bio,
+  avatarUrl,
+  onSettingsPress,
+}: ProfileHeaderProps): React.JSX.Element => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  // Ảnh đại diện mặc định nếu user chưa cập nhật
+  const defaultAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=250';
+  const cleanUsername = username ? username.replace(/^@/, '') : '';
 
   return (
     <View style={styles.container}>
@@ -24,18 +38,23 @@ export const ProfileHeader = ({ onSettingsPress }: ProfileHeaderProps): React.JS
         </Pressable>
       </View>
 
-      {/* Thông tin cá nhân */}
+      {/* Thông tin cá nhân thật */}
       <View style={styles.infoSection}>
         <View style={styles.avatarContainer}>
           <Image
-            source="https://images.unsplash.com/photo-1527980965255-d3b416303d12?q=80&w=250"
+            source={avatarUrl || defaultAvatar}
             style={styles.avatar}
             contentFit="cover"
-            transition={500}
+            transition={300}
           />
         </View>
-        <Text style={styles.username}>@traveler_viet</Text>
-        <Text style={styles.bio}>Exploring the hidden gems of Vietnam 🇻🇳</Text>
+        <Text style={styles.displayName}>{displayName || 'SnapStep Explorer'}</Text>
+        {cleanUsername ? (
+          <Text style={styles.username}>@{cleanUsername}</Text>
+        ) : null}
+        <Text style={styles.bio}>
+          {bio || 'Cùng SnapStep lưu giữ những bước chân khám phá Việt Nam 🇻🇳'}
+        </Text>
         
         {/* Nút Chỉnh sửa hồ sơ */}
         <Pressable 
@@ -88,17 +107,25 @@ const styles = StyleSheet.create({
     height: 88,
     borderRadius: 44,
   },
-  username: {
+  displayName: {
     color: Colors.white,
     fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  username: {
+    color: Colors.primary,
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   bio: {
     color: Colors.textMuted,
     fontSize: 14,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    lineHeight: 20,
   },
   editProfileBtn: {
     paddingHorizontal: 24,
