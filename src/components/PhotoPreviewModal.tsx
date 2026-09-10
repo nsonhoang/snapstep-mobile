@@ -7,8 +7,6 @@ import {
   Image,
   Pressable,
   Switch,
-  TextInput,
-  Platform,
   TouchableWithoutFeedback,
   Keyboard,
   ActivityIndicator,
@@ -20,17 +18,28 @@ import { Colors } from "../constants/Colors";
 import { LocationJourneySelector } from "./LocationJourneySelector";
 import { CustomInput } from "./CustomInput";
 import { useAlert } from "../components/AlertProvider";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import Animated, {
+  useAnimatedStyle,
+  FadeIn,
+  FadeOut,
+} from "react-native-reanimated";
 import { useKeyboardHeight } from "../hooks/useKeyboardHeight";
 import { useTripStore } from "../stores/tripStore";
 import { useAuthStore } from "../stores/authStore";
+import { useLocation } from "../hooks/useLocation";
+import { Location } from "../services/postService";
+import * as LocationExpo from "expo-location";
 
 export interface PhotoPreviewModalProps {
   visible: boolean;
   photoUri?: string;
   onClose: () => void;
   onRetake: () => void;
-  onPost?: (captionText: string) => Promise<void>;
+  onPost?: (
+    captionText: string,
+    shareToMap: boolean,
+    postLocation: Location | null,
+  ) => Promise<void>;
 }
 
 export const PhotoPreviewModal = ({
@@ -42,9 +51,17 @@ export const PhotoPreviewModal = ({
   const { trips, fetchTrips, selectedTripId, setSelectedTripId } =
     useTripStore();
   const { user } = useAuthStore();
+  const {
+    location,
+    errorMsg: locationErrorMsg,
+    isLoading: isLocationLoading,
+    refetch: refetchLocation,
+  } = useLocation();
+
   const [shareToMap, setShareToMap] = useState<boolean>(true);
   const [caption, setCaption] = useState<string>("");
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
   const keyboardHeight = useKeyboardHeight();
 
@@ -62,7 +79,40 @@ export const PhotoPreviewModal = ({
     }
   }, [user?.uid]);
 
+  // Đồng bộ trạng thái shareToMap theo tình trạng vị trí khi mở modal
+  useEffect(() => {
+    if (visible) {
+      if (location) {
+        setShareToMap(true);
+      } else {
+        setShareToMap(false);
+      }
+    }
+  }, [visible]);
+
   const { showAlert } = useAlert();
+
+  // Xử lý bật/tắt chia sẻ lên bản đồ
+  const handleToggleShareToMap = async (val: boolean): Promise<void> => {
+    if (val) {
+      setShareToMap(true);
+      // Khi gạt bật, kích hoạt xin quyền và cập nhật vị trí thời gian thực qua hook
+
+      if (locationErrorMsg) {
+        setShareToMap(false);
+        setNoticeMessage("Cần cấp quyền truy cập vị trí ở trong cài đặt");
+        setTimeout(() => {
+          setNoticeMessage(null);
+        }, 3000);
+
+        return;
+      }
+
+      await refetchLocation();
+    } else {
+      setShareToMap(false);
+    }
+  };
 
   const handleSavePhoto = async () => {
     if (!photoUri) return;
@@ -97,10 +147,38 @@ export const PhotoPreviewModal = ({
   };
 
   const handlePostPhoto = async () => {
+    // 1. Kiểm tra hành trình trước khi upload
+    if (!selectedTripId) {
+      setNoticeMessage("Vui lòng chọn hành trình trước khi đăng!");
+      setTimeout(() => {
+        setNoticeMessage(null);
+      }, 3000);
+      return;
+    }
+
     setIsUploading(true);
-    await onPost?.(caption);
-    setIsUploading(false);
-    setCaption("");
+    try {
+      // Xác định tọa độ gửi kèm: Chỉ lấy khi công tắc BẬT và đã lấy được tọa độ GPS hợp lệ
+      const postLoc: Location | null =
+        shareToMap && location
+          ? {
+              latitude: location.latitude,
+              longitude: location.longitude,
+              address: location.address || "Vị trí không xác định",
+            }
+          : null;
+
+      await onPost?.(caption, shareToMap, postLoc);
+      setCaption("");
+    } catch (error) {
+      console.error("Lỗi khi đăng bài viết:", error);
+      setNoticeMessage("Đăng bài thất bại, vui lòng thử lại!");
+      setTimeout(() => {
+        setNoticeMessage(null);
+      }, 3000);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -111,7 +189,10 @@ export const PhotoPreviewModal = ({
       onRequestClose={onClose}
     >
       <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-        <SafeAreaView style={styles.modalContainer} pointerEvents={isUploading ? "none" : "auto"}>
+        <SafeAreaView
+          style={styles.modalContainer}
+          pointerEvents={isUploading ? "none" : "auto"}
+        >
           {/* Header Navigation */}
           <View style={styles.header}>
             <Pressable onPress={onClose} style={styles.iconButton} hitSlop={8}>
@@ -170,25 +251,71 @@ export const PhotoPreviewModal = ({
                       size={18}
                       color={Colors.primary}
                     />
-                    {/* nếu có vị trí thì bật lên  */}
                     <Text style={styles.optionTitle}>
                       Chia sẻ lên Bản đồ Bước chân
                     </Text>
                   </View>
-                  <Text style={styles.optionSubtitle}>
-                    Cho phép bạn bè khám phá địa điểm đẹp này của bạn
-                  </Text>
+                  {shareToMap ? (
+                    isLocationLoading ? (
+                      <View style={styles.locationLoadingRow}>
+                        <ActivityIndicator
+                          size="small"
+                          color={Colors.primary}
+                        />
+                        <Text style={styles.optionSubtitle}>
+                          Đang xác định vị trí...
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text
+                        style={[
+                          styles.optionSubtitle,
+                          {
+                            color: Colors.primary,
+                            fontWeight: "600",
+                            marginTop: 4,
+                          },
+                        ]}
+                      >
+                        📍 {location?.address || "Đã xác định tọa độ GPS"}
+                      </Text>
+                    )
+                  ) : (
+                    <Text
+                      style={[
+                        styles.optionSubtitle,
+                        {
+                          color: Colors.textMuted,
+                          fontStyle: "italic",
+                          marginTop: 4,
+                        },
+                      ]}
+                    >
+                      Vị trí sẽ không được lưu vào bài viết này
+                    </Text>
+                  )}
                 </View>
                 <Switch
-                  /* nếu có vị trí thì bật lên  */
                   value={shareToMap}
-                  onValueChange={setShareToMap}
+                  onValueChange={handleToggleShareToMap}
                   trackColor={{ false: "#3A3A3C", true: Colors.primary }}
                   thumbColor={Colors.white}
                 />
               </View>
             </View>
           </View>
+
+          {/* Thông báo nổi cảnh báo ngay bên trong Modal */}
+          {noticeMessage && (
+            <Animated.View
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(200)}
+              style={styles.modalToast}
+            >
+              <Feather name="alert-circle" size={16} color={Colors.white} />
+              <Text style={styles.modalToastText}>{noticeMessage}</Text>
+            </Animated.View>
+          )}
 
           {/* Bottom Action Footer */}
           <View style={styles.footer}>
@@ -202,7 +329,11 @@ export const PhotoPreviewModal = ({
 
             <Pressable
               onPress={handlePostPhoto}
-              style={[styles.actionButton, styles.postButton, isUploading && { opacity: 0.7 }]}
+              style={[
+                styles.actionButton,
+                styles.postButton,
+                isUploading && { opacity: 0.7 },
+              ]}
               disabled={isUploading}
             >
               {isUploading ? (
@@ -222,6 +353,27 @@ export const PhotoPreviewModal = ({
 };
 
 const styles = StyleSheet.create({
+  modalToast: {
+    position: "absolute",
+    marginHorizontal: 30,
+    bottom: 95,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(220, 53, 69, 0.95)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    zIndex: 9999,
+  },
+  modalToastText: {
+    color: Colors.white,
+    fontSize: 13,
+    fontWeight: "600",
+  },
   modalContainer: {
     flex: 1,
     backgroundColor: "#0F1417",
@@ -356,5 +508,11 @@ const styles = StyleSheet.create({
     color: Colors.black,
     fontSize: 15,
     fontWeight: "700",
+  },
+  locationLoadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
   },
 });

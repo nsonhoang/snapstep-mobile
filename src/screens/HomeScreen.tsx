@@ -203,51 +203,85 @@ export const HomeScreen = ({
     }
   };
 
-  const handlePostPhoto = async (captionText: string): Promise<void> => {
+  const handlePostPhoto = async (
+    captionText: string,
+    shareToMap: boolean = true,
+    postLocation: Location | null = null,
+  ): Promise<void> => {
+    let uploadedImageUrl: string | null = null;
     try {
-      // lưu hình ảnh lên storage
+      if (!selectedTripId) {
+        showCustomToast("Vui lòng chọn hành trình của bạn!");
+        return;
+      }
+
       if (user && capturedPhotoUri) {
-        const rawPath = capturedPhotoUri?.replace("file://", "");
+        const rawPath = capturedPhotoUri.replace("file://", "");
         const compressedUri = await ImageUtils.compressImage(rawPath);
         console.log("Đã nén ảnh trước khi Up:", compressedUri);
-        const imageUrl = await ImageService.uploadImage(
+
+        // 1. Tải ảnh lên Firebase Storage
+        uploadedImageUrl = await ImageService.uploadImage(
           compressedUri,
-          user?.uid,
+          user.uid,
         );
-        console.log("URL của ảnh trên Storage:", imageUrl);
-        if (imageUrl && selectedTripId) {
-          const position: Location = {
-            address: location?.address || "Vị trí không xác định",
-            longitude: location?.longitude || 0,
-            latitude: location?.latitude || 0,
-          };
+        console.log("URL của ảnh trên Storage:", uploadedImageUrl);
 
-          const post: Post = {
-            authorId: user.uid,
-            imageUrl,
-            caption: captionText,
-            tripId: selectedTripId,
-            location: position,
-            createdAt: serverTimestamp(),
-            updateAt: serverTimestamp(),
-            like: 0,
-            love: 0,
-            hate: 0,
-            haha: 0,
-          };
-          await PostService.createPost(post);
-
-          showCustomToast("Đăng bài thành công!");
+        if (!uploadedImageUrl) {
+          throw new Error("Không thể tải ảnh lên máy chủ (Upload ảnh thất bại).");
         }
+
+        // Tọa độ bài viết: Chỉ lưu khi người dùng bật Chia sẻ lên bản đồ (shareToMap === true)
+        const position: Location | null = shareToMap
+          ? (postLocation ||
+              (location
+                ? {
+                    address: location.address || "Vị trí không xác định",
+                    longitude: location.longitude,
+                    latitude: location.latitude,
+                  }
+                : null))
+          : null;
+
+        const post: Post = {
+          authorId: user.uid,
+          imageUrl: uploadedImageUrl,
+          caption: captionText,
+          tripId: selectedTripId,
+          location: position,
+          shareToMap: shareToMap,
+          createdAt: serverTimestamp(),
+          updateAt: serverTimestamp(),
+          like: 0,
+          love: 0,
+          hate: 0,
+          haha: 0,
+        };
+
+        // 2. Tạo bài viết trong Firestore
+        await PostService.createPost(post);
+
+        // Đóng modal xem trước và xóa ảnh tạm
         setIsPreviewVisible(false);
+        setCapturedPhotoUri(undefined);
+        showCustomToast("Đăng bài thành công!");
       }
     } catch (error) {
-      console.log(error);
-      showAlert({
-        title: "Lỗi",
-        message: "Không thể tạo bài viết.",
-        type: "error",
-      });
+      console.error("Lỗi khi đăng bài viết:", error);
+
+      // 👉 CƠ CHẾ ROLLBACK: Nếu ảnh đã upload lên Storage nhưng tạo bài viết thất bại -> Xóa ngay ảnh trên Storage!
+      if (uploadedImageUrl) {
+        console.log("Đang kích hoạt Rollback xóa ảnh rác trên Storage:", uploadedImageUrl);
+        try {
+          await ImageService.deleteImage(uploadedImageUrl);
+          console.log("Đã rollback dọn rác ảnh thành công!");
+        } catch (cleanupError) {
+          console.error("Lỗi khi rollback xóa ảnh trên Storage:", cleanupError);
+        }
+      }
+
+      // Ném lỗi để PhotoPreviewModal hiển thị thông báo lỗi màu đỏ trực tiếp
+      throw error;
     }
   };
 

@@ -32,6 +32,7 @@ export const ExploreScreen = ({
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedChipId, setSelectedChipId] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"grid" | "feed">("grid");
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const db = getFirestore();
   const { user } = useAuthStore();
   const { posts, isLoading, isFetchingMore, subscribePosts, fetchMorePosts } =
@@ -145,23 +146,42 @@ export const ExploreScreen = ({
     return chips;
   }, [user?.uid, user?.photoURL, friends]);
 
+  // Kéo xuống để làm mới danh sách bài viết
+  const handleRefresh = useCallback((): void => {
+    if (allowedAuthorIds.length === 0) return;
+    setIsRefreshing(true);
+    subscribePosts(allowedAuthorIds);
+    // Tắt trạng thái refreshing sau một khoảng thời gian ngắn
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 600);
+  }, [allowedAuthorIds, subscribePosts]);
+
   // Lọc bài viết theo ô tìm kiếm và chip bạn bè đã chọn
   const filteredPosts = useMemo(() => {
-    if (selectedChipId === "all") {
-      return posts.filter((post) =>
-        post.location?.address
-          ?.toLowerCase()
-          .includes(searchQuery.toLowerCase()),
-      );
-    } else {
-      return posts.filter(
-        (post) =>
-          post.authorId === selectedChipId &&
-          post.location?.address
-            ?.toLowerCase()
-            .includes(searchQuery.toLowerCase()),
-      );
-    }
+    const trimmedQuery = searchQuery.trim().toLowerCase();
+
+    return posts.filter((post) => {
+      // 1. Lọc theo tác giả từ chip (nếu không chọn 'all')
+      if (selectedChipId !== "all" && post.authorId !== selectedChipId) {
+        return false;
+      }
+
+      // 2. Nếu không nhập tìm kiếm -> Giữ lại tất cả bài viết (kể cả có vị trí hay tắt vị trí)
+      if (!trimmedQuery) {
+        return true;
+      }
+
+      // 3. Nếu có từ khóa tìm kiếm -> Tìm theo nội dung mô tả (caption) hoặc địa chỉ (address)
+      const matchCaption = post.caption
+        ? post.caption.toLowerCase().includes(trimmedQuery)
+        : false;
+      const matchAddress = post.location?.address
+        ? post.location.address.toLowerCase().includes(trimmedQuery)
+        : false;
+
+      return matchCaption || matchAddress;
+    });
   }, [searchQuery, selectedChipId, posts]);
 
   const handlePressPost = useCallback(
@@ -237,6 +257,8 @@ export const ExploreScreen = ({
             renderItem={renderPostItem}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.flatListContent}
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
             onEndReached={() => fetchMorePosts(allowedAuthorIds)}
             onEndReachedThreshold={0.5}
             ListEmptyComponent={!isLoading ? renderEmptyState : null}

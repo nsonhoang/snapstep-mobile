@@ -188,4 +188,54 @@ export const UserService = {
       return false;
     }
   },
+
+  // Tăng số lượng ảnh đã đăng (+1)
+  incrementPhotosCount: async (uid: string): Promise<void> => {
+    if (!uid) return;
+    try {
+      const db = getFirestore();
+      const userRef = doc(db, "users", uid);
+      await setDoc(
+        userRef,
+        {
+          stats: {
+            totalPhotosCount: FieldValue.increment(1),
+          },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    } catch (error) {
+      console.error(`Lỗi khi tăng photosCount cho user ${uid}:`, error);
+    }
+  },
+
+  // Giảm số lượng ảnh khi xóa bài (-1) (chặn số âm)
+  decrementPhotosCount: async (uid: string): Promise<void> => {
+    if (!uid) return;
+    try {
+      const db = getFirestore();
+      const userRef = doc(db, "users", uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const currentCount = userSnap.data()?.stats?.totalPhotosCount ?? 0;
+        // Nếu số lượng hiện tại <= 0 thì không giảm nữa để tránh âm
+        if (currentCount <= 0) {
+          return;
+        }
+      }
+      await setDoc(
+        userRef,
+        {
+          stats: {
+            totalPhotosCount: FieldValue.increment(-1),
+          },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    } catch (error) {
+      console.error(`Lỗi khi giảm photosCount cho user ${uid}:`, error);
+    }
+  },
 };

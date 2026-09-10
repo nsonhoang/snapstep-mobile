@@ -11,6 +11,9 @@ import {
   where,
   DocumentSnapshot,
   addDoc,
+  doc,
+  setDoc,
+  serverTimestamp,
 } from "@react-native-firebase/firestore";
 
 export interface Trip {
@@ -119,5 +122,43 @@ export const TripService = {
       .catch((error) => {
         console.error("Error creating trip:", error);
       });
+  },
+
+  // Thêm postId vào mảng postIds của chuyến đi
+  addPostToTrip: async (tripId: string, postId: string): Promise<void> => {
+    if (!tripId || !postId) return;
+    try {
+      const db = getFirestore();
+      const tripRef = doc(db, "trips", tripId);
+      await setDoc(
+        tripRef,
+        {
+          postIds: FieldValue.arrayUnion(postId),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    } catch (error) {
+      console.error(`Lỗi khi thêm bài viết vào chuyến đi ${tripId}:`, error);
+    }
+  },
+
+  // Gỡ postId khỏi mảng postIds của chuyến đi khi xóa bài viết
+  removePostFromTrip: async (tripId: string, postId: string): Promise<void> => {
+    if (!tripId || !postId) return;
+    try {
+      const db = getFirestore();
+      const tripRef = doc(db, "trips", tripId);
+      await setDoc(
+        tripRef,
+        {
+          postIds: FieldValue.arrayRemove(postId),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    } catch (error) {
+      console.error(`Lỗi khi gỡ bài viết khỏi chuyến đi ${tripId}:`, error);
+    }
   },
 };

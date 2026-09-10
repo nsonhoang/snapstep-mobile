@@ -17,6 +17,8 @@ import {
   onSnapshot,
 } from "@react-native-firebase/firestore";
 import { ImageService } from "./imageService";
+import { UserService } from "./userService";
+import { TripService } from "./tripService";
 
 export interface Post {
   authorId: string; // sẽ gán băng userId
@@ -29,6 +31,7 @@ export interface Post {
   caption?: string;
   tripId: string;
   location: Location | null;
+  shareToMap?: boolean;
   createdAt: Timestamp | FieldValue;
   updateAt: Timestamp | FieldValue;
 }
@@ -249,33 +252,60 @@ export const PostService = {
     return { posts, lastDoc: snapshot.docs[snapshot.docs.length - 1] };
   },
 
-  createPost: async (post: Post) => {
+  createPost: async (post: Post): Promise<string> => {
     const db = getFirestore();
     const postsRef = collection(db, "posts");
-    await addDoc(postsRef, post)
-      .then(() => {
-        console.log("Post created successfully");
-      })
-      .catch((error) => {
-        console.error("Error creating post:", error);
-      });
+    const docRef = await addDoc(postsRef, post);
+    console.log("Post created successfully with ID:", docRef.id);
+
+    // Tự động tăng số lượng ảnh (+1) cho tác giả và thêm bài viết vào chuyến đi
+    try {
+      if (post.authorId) {
+        await UserService.incrementPhotosCount(post.authorId);
+      }
+      if (post.tripId) {
+        await TripService.addPostToTrip(post.tripId, docRef.id);
+      }
+    } catch (statsError) {
+      console.warn("Lỗi khi cập nhật thống kê người dùng hoặc hành trình:", statsError);
+    }
+
+    return docRef.id;
   },
 
-  deletePost: async (id: string) => {
+  deletePost: async (id: string): Promise<void> => {
     const db = getFirestore();
     const postsRef = collection(db, "posts");
-    const post = await getDoc(doc(postsRef, id));
-    if (post.exists()) {
-      const imageUrl = post.data().imageUrl;
-      await deleteDoc(doc(postsRef, id))
-        .then(() => {
-          console.log("Post deleted successfully");
-          // xóa hình ảnh khỏi storage
-          ImageService.deleteImage(imageUrl);
-        })
-        .catch((error) => {
-          console.error("Error deleting post:", error);
-        });
+    const postSnap = await getDoc(doc(postsRef, id));
+    if (postSnap.exists()) {
+      const postData = postSnap.data();
+      const imageUrl = postData?.imageUrl;
+      const authorId = postData?.authorId;
+      const tripId = postData?.tripId;
+
+      await deleteDoc(doc(postsRef, id));
+      console.log("Post deleted successfully");
+
+      // Xóa hình ảnh khỏi storage
+      if (imageUrl) {
+        try {
+          await ImageService.deleteImage(imageUrl);
+        } catch (imgError) {
+          console.error("Lỗi khi xóa ảnh trên Storage:", imgError);
+        }
+      }
+
+      // Giảm số lượng ảnh (-1) và gỡ bài viết khỏi chuyến đi
+      try {
+        if (authorId) {
+          await UserService.decrementPhotosCount(authorId);
+        }
+        if (tripId) {
+          await TripService.removePostFromTrip(tripId, id);
+        }
+      } catch (statsError) {
+        console.warn("Lỗi khi giảm thống kê hoặc gỡ bài khỏi hành trình:", statsError);
+      }
     }
   },
 };
