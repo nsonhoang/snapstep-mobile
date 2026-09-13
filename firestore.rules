@@ -49,6 +49,24 @@ service cloud.firestore {
 
       // XÓA: Cấm tuyệt đối xóa user trực tiếp từ app (chỉ admin mới có quyền)
       allow delete: if false;
+
+      // -----------------------------------------------------------------------
+      // 2.1 BẢO MẬT SUBCOLLECTION "chats" (HỘP THƯ TIN NHẮN HYBRID)
+      // Đường dẫn: users/{userId}/chats/{chatId}
+      // -----------------------------------------------------------------------
+      match /chats/{chatId} {
+        // ĐỌC: Chỉ chính chủ userId mới xem được hộp thư riêng tư của mình
+        allow read: if laChinhChu(userId);
+
+        // GHI: Cho phép chính chủ (khi đánh dấu đã đọc) HOẶC người gửi tin nhắn (khi cập nhật inbox người nhận)
+        allow create, update: if daDangNhap() && (
+          request.auth.uid == userId ||
+          request.resource.data.lastSenderId == request.auth.uid
+        );
+
+        // XÓA: Chỉ chính chủ mới có quyền xóa hội thoại khỏi hộp thư của mình
+        allow delete: if laChinhChu(userId);
+      }
     }
 
 

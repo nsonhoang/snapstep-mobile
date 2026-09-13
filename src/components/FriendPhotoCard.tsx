@@ -10,6 +10,9 @@ import { useAlert } from "./AlertProvider";
 import { CommentInputBar } from "./CommentInputBar";
 import { useKeyboardHeight } from "../hooks/useKeyboardHeight";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../navigation/types";
 
 const EMOJI_REACTIONS = [
   { id: "heart", emoji: "❤️" },
@@ -50,19 +53,29 @@ export const FriendPhotoCard = ({
 
   const { showAlert } = useAlert();
   const { users } = useUserStore();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const author = users[post.authorId];
   const displayName = author?.firstName || "user";
 
   const handleSendComment = useCallback((): void => {
-    if (!commentText.trim()) return;
+    const text = commentText.trim();
+    if (!text) return;
 
-    showAlert({
-      title: "Đã gửi phản hồi",
-      message: `Bình luận của bạn trên bài viết @${displayName}: "${commentText}"`,
-      type: "success",
-    });
     setCommentText("");
-  }, [commentText, post, showAlert]);
+    // Điều hướng sang màn hình Chat kèm dữ liệu snap photo reply
+    navigation.navigate("Chat", {
+      recipientId: post.authorId,
+      recipientName: displayName,
+      recipientAvatar: author?.avatarUrl || undefined,
+      initialReplyPost: {
+        postId: post.id,
+        imageUrl: post.imageUrl,
+        caption: post.caption,
+        locationName: post.location?.address || undefined,
+      },
+      initialMessageText: text,
+    });
+  }, [commentText, post, displayName, author, navigation]);
 
   const removeFloatingEmoji = useCallback((id: string) => {
     setFloatingEmojis((prev) => prev.filter((item) => item.id !== id));

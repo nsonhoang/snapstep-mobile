@@ -11,6 +11,11 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useAuthStore } from '../stores/authStore';
 import { useFriendshipStore } from '../stores/friendshipStore';
+import {
+  ChatService,
+  UserChatSummaryUI,
+} from '../services/chatService';
+import { Timestamp } from '@react-native-firebase/firestore';
 
 export const FriendsScreen = (): React.JSX.Element => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -25,6 +30,7 @@ export const FriendsScreen = (): React.JSX.Element => {
   } = useFriendshipStore();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [chatSummaries, setChatSummaries] = useState<Record<string, UserChatSummaryUI>>({});
 
   // Lắng nghe cập nhật danh sách bạn bè thời gian thực
   useEffect(() => {
@@ -33,22 +39,60 @@ export const FriendsScreen = (): React.JSX.Element => {
     return () => unsubscribe();
   }, [currentUserId]);
 
-  // Chuyển đổi danh sách bạn bè thật sang format ChatItem để hiển thị (loại trừ chính mình nếu có)
+  // Lắng nghe cập nhật hộp thư cuộc trò chuyện từ Firestore
+  useEffect(() => {
+    if (!currentUserId) return;
+    const unsubscribe = ChatService.subscribeUserChats(currentUserId, (summaries) => {
+      const map: Record<string, UserChatSummaryUI> = {};
+      summaries.forEach((s) => {
+        map[s.recipientId] = s;
+      });
+      setChatSummaries(map);
+    });
+    return () => unsubscribe();
+  }, [currentUserId]);
+
+  // Chuyển đổi danh sách bạn bè thật sang format ChatItem để hiển thị (kèm xem trước tin nhắn đã giải mã)
   const chatsList: Chat[] = useMemo(() => {
     return friends
       .filter((friend) => friend.id !== currentUserId)
-      .map((friend) => ({
-        id: friend.id,
-        name: `${friend.firstName || ''} ${friend.lastName || ''}`.trim() || friend.email || 'Bạn bè',
-        lastMessage: 'Đã kết nối bạn đồng hành!',
-        time: 'Vừa xong',
-        unread: 0,
-        avatar:
-          friend.avatarUrl ||
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=250',
-        isOnline: true,
-      }));
-  }, [friends, currentUserId]);
+      .map((friend) => {
+        const summary = chatSummaries[friend.id];
+
+        let timeText = 'Mới';
+        if (summary?.updatedAt) {
+          const date =
+            summary.updatedAt instanceof Timestamp
+              ? summary.updatedAt.toDate()
+              : new Date();
+          const hours = date.getHours().toString().padStart(2, '0');
+          const minutes = date.getMinutes().toString().padStart(2, '0');
+          timeText = `${hours}:${minutes}`;
+        }
+
+        return {
+          id: friend.id,
+          name:
+            `${friend.firstName || ''} ${friend.lastName || ''}`.trim() ||
+            friend.email ||
+            'Bạn bè',
+          lastMessage: summary?.lastMessageDecrypted || 'Đã kết nối bạn đồng hành!',
+          time: summary ? timeText : 'Vừa xong',
+          unread: summary?.unreadCount || 0,
+          avatar:
+            friend.avatarUrl ||
+            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=250',
+          isOnline: true,
+        };
+      })
+      .sort((a, b) => {
+        const aSummary = chatSummaries[a.id];
+        const bSummary = chatSummaries[b.id];
+        if (aSummary && !bSummary) return -1;
+        if (!aSummary && bSummary) return 1;
+        return 0;
+      });
+  }, [friends, currentUserId, chatSummaries]);
 
   // Lọc theo từ khóa tìm kiếm
   const filteredChats = useMemo(() => {
@@ -59,8 +103,19 @@ export const FriendsScreen = (): React.JSX.Element => {
   }, [searchQuery, chatsList]);
 
   const renderChatItem = useCallback(({ item }: { item: Chat }) => {
-    return <ChatItem item={item} />;
-  }, []);
+    return (
+      <ChatItem
+        item={item}
+        onPress={() => {
+          navigation.navigate('Chat', {
+            recipientId: item.id,
+            recipientName: item.name,
+            recipientAvatar: item.avatar,
+          });
+        }}
+      />
+    );
+  }, [navigation]);
 
   const navigateToNewFriends = () => {
     navigation.navigate('SearchBuddies');

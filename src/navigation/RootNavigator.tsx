@@ -18,6 +18,7 @@ import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
 import { HelpAndSupportScreen } from '../screens/HelpAndSupportScreen';
 import { VerifyEmailScreen } from '../screens/VerifyEmailScreen';
+import { ChatScreen } from '../screens/ChatScreen';
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -98,6 +99,11 @@ export const RootNavigator = (): React.JSX.Element => {
             <Stack.Screen
               name="HelpAndSupport"
               component={HelpAndSupportScreen}
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="Chat"
+              component={ChatScreen}
               options={{ animation: 'slide_from_right' }}
             />
             </>

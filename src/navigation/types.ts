@@ -5,6 +5,7 @@ import {
   NavigatorScreenParams,
 } from "@react-navigation/native";
 import { PostWithId } from "../services/postService";
+import { ChatReplyPost } from "../services/chatService";
 
 export type MainTabParamList = {
   Explore: { filter?: string } | undefined;
@@ -30,7 +31,19 @@ export type RootStackParamList = {
   EditProfile: undefined;
   ChangePassword: undefined;
   HelpAndSupport: undefined;
+  Chat: {
+    recipientId: string;
+    recipientName: string;
+    recipientAvatar?: string;
+    initialReplyPost?: ChatReplyPost;
+    initialMessageText?: string;
+  };
 };
+
+export type ChatScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  "Chat"
+>;
 
 export type LoginScreenProps = NativeStackScreenProps<
   RootStackParamList,

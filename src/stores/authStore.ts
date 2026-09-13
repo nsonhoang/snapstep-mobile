@@ -7,6 +7,7 @@ import {
   User,
 } from "@react-native-firebase/auth";
 import { create } from "zustand";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTripStore } from "./tripStore";
 
 interface AuthContextType {
@@ -57,6 +58,21 @@ export const useAuthStore = create<AuthContextType>((set, get) => ({
       });
   },
   logout: async () => {
+    const currentUid = get().user?.uid;
+    if (currentUid) {
+      try {
+        const allKeys = await AsyncStorage.getAllKeys();
+        const userFailedMsgKeys = allKeys.filter((k) =>
+          k.startsWith(`@failed_msg_${currentUid}`)
+        );
+        if (userFailedMsgKeys.length > 0) {
+          await AsyncStorage.multiRemove(userFailedMsgKeys);
+        }
+      } catch (e) {
+        console.error("Lỗi khi dọn dẹp tin nhắn lỗi khi đăng xuất:", e);
+      }
+    }
+
     useTripStore.setState({
       trips: [],
       selectedTripId: null,
