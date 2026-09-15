@@ -77,7 +77,7 @@ export interface ChatMessageRTDB {
   ciphertext: string; // Nội dung tin nhắn đã mã hóa (chuỗi Base64)
   iv: string; // Initialization Vector (16 bytes Hex)
   replyPost?: ChatReplyPost | null; // Dữ liệu ảnh Snap trích dẫn nếu có
-  isRead: boolean; // Trạng thái đã xem
+  //isRead: boolean; // Trạng thái đã xem
   createdAt: number; // Timestamp mili-giây từ Server
 }
 
@@ -105,19 +105,37 @@ export interface ChatMessageUI {
 
 export const ChatService = {
   /**
+   * Sinh trước mã ID duy nhất (Push Key) cho tin nhắn mới từ Realtime Database
+   *
+   * @param chatId ID phòng chat
+   * @returns Push Key từ Firebase RTDB
+   */
+  generateMessageId(chatId: string): string {
+    const rtdb = getDatabase();
+    const messagesCollectionRef = ref(rtdb, `messages/${chatId}`);
+    const newMsgRef = push(messagesCollectionRef);
+    return (
+      newMsgRef.key ||
+      `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    );
+  },
+
+  /**
    * Gửi tin nhắn mới: Mã hóa văn bản, ghi vào Realtime Database và cập nhật Firestore
    *
    * @param senderId UID người gửi
    * @param receiverId UID người nhận
    * @param text Nội dung tin nhắn văn bản
    * @param replyPost Thẻ ảnh Snap trích dẫn nếu có
+   * @param customMessageId ID tin nhắn đã được sinh trước (tùy chọn)
    * @returns messageId (Push Key) của tin nhắn vừa gửi
    */
   async sendMessage(
     senderId: string,
     receiverId: string,
     text: string,
-    replyPost?: ChatReplyPost | null
+    replyPost?: ChatReplyPost | null,
+    customMessageId?: string,
   ): Promise<string> {
     const trimmedText = text.trim();
     if (!trimmedText && !replyPost) {
@@ -130,17 +148,18 @@ export const ChatService = {
     // 1. Mã hóa nội dung tin nhắn bằng AES
     const { ciphertext, iv } = encryptMessage(trimmedText, roomKey);
 
-    // 2. Sinh Firebase Push Key trên Client bằng Realtime Database Modular API
+    // 2. Sử dụng ID tùy chọn hoặc sinh Firebase Push Key mới trên Client
     const rtdb = getDatabase();
-    const messagesCollectionRef = ref(rtdb, `messages/${chatId}`);
-    const newMsgRef = push(messagesCollectionRef);
-    const messageId = newMsgRef.key;
+    const messageId =
+      customMessageId || push(ref(rtdb, `messages/${chatId}`)).key;
 
     if (!messageId) {
       throw new Error(
-        "Không thể khởi tạo ID tin nhắn từ Firebase Realtime Database"
+        "Không thể khởi tạo ID tin nhắn từ Firebase Realtime Database",
       );
     }
+
+    const targetMsgRef = ref(rtdb, `messages/${chatId}/${messageId}`);
 
     // 3. Ghi dữ liệu tin nhắn vào Realtime Database
     const messageData: ChatMessageRTDB = {
@@ -149,11 +168,11 @@ export const ChatService = {
       ciphertext,
       iv,
       replyPost: replyPost || null,
-      isRead: false,
+      // isRead: false,
       createdAt: rtdbServerTimestamp() as unknown as number,
     };
 
-    await set(newMsgRef, messageData);
+    await set(targetMsgRef, messageData);
 
     // 4. Cập nhật song song tóm tắt hội thoại lên Firestore cho cả người gửi và người nhận
     const firestoreDb = getFirestore();
@@ -162,13 +181,13 @@ export const ChatService = {
     // Hộp thư của người gửi (Alice)
     const senderChatDocRef = doc(
       firestoreDb,
-      `users/${senderId}/chats/${chatId}`
+      `users/${senderId}/chats/${chatId}`,
     );
 
     // Hộp thư của người nhận (Bob)
     const receiverChatDocRef = doc(
       firestoreDb,
-      `users/${receiverId}/chats/${chatId}`
+      `users/${receiverId}/chats/${chatId}`,
     );
 
     await Promise.all([
@@ -184,7 +203,7 @@ export const ChatService = {
           unreadCount: 0,
           updatedAt: now,
         },
-        { merge: true }
+        { merge: true },
       ),
       setDoc(
         receiverChatDocRef,
@@ -198,7 +217,7 @@ export const ChatService = {
           unreadCount: FieldValue.increment(1),
           updatedAt: now,
         },
-        { merge: true }
+        { merge: true },
       ),
     ]);
 
@@ -218,7 +237,7 @@ export const ChatService = {
     chatId: string,
     currentUserId: string,
     otherUserId: string,
-    onMessagesUpdate: (messages: ChatMessageUI[]) => void
+    onMessagesUpdate: (messages: ChatMessageUI[]) => void,
   ): () => void {
     const roomKey = deriveChatRoomKey(currentUserId, otherUserId);
     const rtdb = getDatabase();
@@ -226,7 +245,7 @@ export const ChatService = {
     const messagesQuery = query(
       messagesRef,
       orderByChild("createdAt"),
-      limitToLast(50)
+      limitToLast(50),
     );
 
     const unsubscribe = onValue(messagesQuery, (snapshot: DataSnapshot) => {
@@ -271,18 +290,18 @@ export const ChatService = {
    */
   subscribeUserChats(
     currentUserId: string,
-    onChatsUpdate: (chats: UserChatSummaryUI[]) => void
+    onChatsUpdate: (chats: UserChatSummaryUI[]) => void,
   ): () => void {
     if (!currentUserId) return () => {};
 
     const firestoreDb = getFirestore();
     const userChatsCollectionRef = collection(
       firestoreDb,
-      `users/${currentUserId}/chats`
+      `users/${currentUserId}/chats`,
     );
     const userChatsQuery = firestoreQuery(
       userChatsCollectionRef,
-      orderBy("updatedAt", "desc")
+      orderBy("updatedAt", "desc"),
     );
 
     const unsubscribe = onSnapshot(
@@ -296,7 +315,7 @@ export const ChatService = {
           const decrypted = decryptMessage(
             data.lastMessageCiphertext,
             data.lastMessageIv,
-            roomKey
+            roomKey,
           );
 
           return {
@@ -308,8 +327,11 @@ export const ChatService = {
         onChatsUpdate(chatsList);
       },
       (error: Error) => {
-        console.error("Lỗi khi lắng nghe danh sách chat trên Firestore:", error);
-      }
+        console.error(
+          "Lỗi khi lắng nghe danh sách chat trên Firestore:",
+          error,
+        );
+      },
     );
 
     return unsubscribe;
@@ -326,13 +348,16 @@ export const ChatService = {
 
     try {
       const firestoreDb = getFirestore();
-      const chatDocRef = doc(firestoreDb, `users/${currentUserId}/chats/${chatId}`);
+      const chatDocRef = doc(
+        firestoreDb,
+        `users/${currentUserId}/chats/${chatId}`,
+      );
       await setDoc(
         chatDocRef,
         {
           unreadCount: 0,
         },
-        { merge: true }
+        { merge: true },
       );
     } catch (error) {
       console.error("Lỗi khi đánh dấu đã đọc cuộc trò chuyện:", error);

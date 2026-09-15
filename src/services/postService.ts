@@ -252,6 +252,25 @@ export const PostService = {
     return { posts, lastDoc: snapshot.docs[snapshot.docs.length - 1] };
   },
 
+  // Lấy chi tiết bài viết theo ID
+  getPostById: async (id: string): Promise<PostWithId | null> => {
+    try {
+      const db = getFirestore();
+      const postsRef = collection(db, "posts");
+      const postSnap = await getDoc(doc(postsRef, id));
+      if (postSnap.exists()) {
+        return {
+          id: postSnap.id,
+          ...(postSnap.data() as Post),
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error("Lỗi khi lấy thông tin bài viết theo ID:", error);
+      return null;
+    }
+  },
+
   createPost: async (post: Post): Promise<string> => {
     const db = getFirestore();
     const postsRef = collection(db, "posts");

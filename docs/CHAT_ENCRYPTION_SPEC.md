@@ -1,4 +1,5 @@
 # 📋 Bản Đặc Tả Kỹ Thuật (Technical Specification)
+
 ## Tính Năng: Kiến Trúc Nhắn Tin Hybrid (Firestore + Realtime Database) & Mã Hóa Dữ Liệu (SnapStep)
 
 - **Trạng thái:** Đã phê duyệt (Approved)
@@ -27,6 +28,7 @@
 ## 2. Lựa Chọn Kiến Trúc Mã Hóa (Crypto Architecture)
 
 ### 2.1. Phương Án Lựa Chọn: AES-256-GCM / CTR + HMAC (Shared Room Key)
+
 - **Thuật toán mã hóa:** Chuẩn công nghiệp AES (Advanced Encryption Standard) 256-bit kết hợp chế độ GCM hoặc CTR + HMAC-SHA256 để bảo vệ tính bí mật và toàn vẹn dữ liệu.
 - **Cơ chế sinh khóa (Key Derivation):**
   - Khóa phòng chat (`RoomKey`) được phái sinh từ UID của 2 người tham gia qua thuật toán PBKDF2:  
@@ -39,45 +41,49 @@
 ## 3. Thiết Kế Cơ Sở Dữ Liệu Hybrid (Database Schema)
 
 ### 3.1. Quy ước đặt tên ID phòng chat (Deterministic Chat ID)
+
 Phòng chat giữa 2 người luôn có `chatId` duy nhất được ghép từ 2 UID theo thứ tự bảng chữ cái:
+
 ```typescript
 export const getChatRoomId = (uid1: string, uid2: string): string => {
-  return [uid1, uid2].sort().join('_');
+  return [uid1, uid2].sort().join("_");
 };
 ```
 
 ---
 
 ### 3.2. Trên Cloud Firestore: Danh sách Hội thoại của User (`users/{userId}/chats/{chatId}`)
+
 Mỗi người dùng sở hữu danh sách hộp thư riêng biệt, chỉ tải tóm tắt các cuộc trò chuyện của chính mình:
 
 ```typescript
 import { Timestamp, FieldValue } from "@react-native-firebase/firestore";
 
 export interface UserChatSummaryFirestore {
-  chatId: string;                     // ID phòng chat = [uidA, uidB].sort().join('_')
-  recipientId: string;                // UID của người bạn trò chuyện
-  lastMessageId: string;              // 👈 Firebase Push Key của tin nhắn gần nhất bên RTDB (vd: "-O7xK91aBcDeFgHiJ")
-  lastMessageCiphertext: string;      // Bản mã của tin nhắn gần nhất (hiển thị xem trước ở Inbox)
-  lastMessageIv: string;              // IV để giải mã tin nhắn gần nhất
-  lastSenderId: string;               // UID người gửi tin cuối
-  unreadCount: number;                // Số lượng tin nhắn chưa đọc của riêng user này
-  updatedAt: Timestamp | FieldValue;  // Thời gian gửi tin cuối (dùng để orderBy sắp xếp danh sách)
+  chatId: string; // ID phòng chat = [uidA, uidB].sort().join('_')
+  recipientId: string; // UID của người bạn trò chuyện
+  lastMessageId: string; // 👈 Firebase Push Key của tin nhắn gần nhất bên RTDB (vd: "-O7xK91aBcDeFgHiJ")
+  lastMessageCiphertext: string; // Bản mã của tin nhắn gần nhất (hiển thị xem trước ở Inbox)
+  lastMessageIv: string; // IV để giải mã tin nhắn gần nhất
+  lastSenderId: string; // UID người gửi tin cuối
+  unreadCount: number; // Số lượng tin nhắn chưa đọc của riêng user này
+  updatedAt: Timestamp | FieldValue; // Thời gian gửi tin cuối (dùng để orderBy sắp xếp danh sách)
 }
 ```
 
-* **Câu truy vấn trên Tab Friends:**
+- **Câu truy vấn trên Tab Friends:**
   ```typescript
   firestore()
-    .collection('users')
+    .collection("users")
     .doc(currentUserId)
-    .collection('chats')
-    .orderBy('updatedAt', 'desc')
+    .collection("chats")
+    .orderBy("updatedAt", "desc");
   ```
 
 ---
 
 ### 3.3. Trên Firebase Realtime Database: Luồng Tin Nhắn (`messages/{chatId}/{messageId}`)
+
 Lưu trữ toàn bộ tin nhắn chi tiết theo từng phòng chat, sử dụng Firebase Push Key làm `messageId`:
 
 ```typescript
@@ -89,17 +95,18 @@ export interface ChatReplyPostMetadata {
 }
 
 export interface ChatMessageRTDB {
-  senderId: string;                      // UID người gửi
-  receiverId: string;                    // UID người nhận
-  ciphertext: string;                    // Nội dung tin nhắn đã mã hóa (chuỗi Base64)
-  iv: string;                            // Initialization Vector (12 bytes Base64)
+  senderId: string; // UID người gửi
+  receiverId: string; // UID người nhận
+  ciphertext: string; // Nội dung tin nhắn đã mã hóa (chuỗi Base64)
+  iv: string; // Initialization Vector (12 bytes Base64)
   replyPost?: ChatReplyPostMetadata | null; // Dữ liệu ảnh Snap trích dẫn nếu có
-  isRead: boolean;                       // Trạng thái đã xem
-  createdAt: number;                     // Timestamp mili-giây từ Server (database.ServerValue.TIMESTAMP)
+  isRead: boolean; // Trạng thái đã xem
+  createdAt: number; // Timestamp mili-giây từ Server (database.ServerValue.TIMESTAMP)
 }
 ```
 
-* **Cơ chế tạo Push Key & Ghi dữ liệu đồng thời:**
+- **Cơ chế tạo Push Key & Ghi dữ liệu đồng thời:**
+
   ```typescript
   // 1. Sinh Push Key trên Client ngay lập tức (không cần chờ network)
   const newMsgRef = database().ref(`messages/${chatId}`).push();
@@ -112,11 +119,9 @@ export interface ChatMessageRTDB {
   await updateFirestoreSummaries(chatId, messageId, ciphertext, iv);
   ```
 
-* **Lắng nghe tin nhắn trên `ChatScreen`:**
+- **Lắng nghe tin nhắn trên `ChatScreen`:**
   ```typescript
-  database()
-    .ref(`messages/${chatId}`)
-    .limitToLast(20) // Chỉ tải 20 tin nhắn gần nhất khi mới vào phòng
+  database().ref(`messages/${chatId}`).limitToLast(20); // Chỉ tải 20 tin nhắn gần nhất khi mới vào phòng
   ```
 
 ---
@@ -135,7 +140,7 @@ sequenceDiagram
 
     Alice->>ClientA: Nhập: "Góc này chụp đẹp quá!" & nhấn Gửi
     ClientA->>ClientA: 1. Sinh IV ngẫu nhiên (12 bytes)<br/>2. Lấy RoomKey của [Alice, Bob]<br/>3. Mã hóa AES: Ciphertext = Encrypt(Text, Key, IV)<br/>4. Sinh Firebase Push Key: messageId = "-O7xK91..."
-    
+
     par Ghi vào Realtime Database (Nhanh, độ trễ < 50ms)
         ClientA->>RTDB: set messages/{chatId}/[-O7xK91...]: { senderId, ciphertext, iv, isRead: false, createdAt }
         RTDB-->>ClientB: WebSocket bắn tin nhắn mới về máy Bob ngay tức thì
@@ -151,27 +156,30 @@ sequenceDiagram
 
 ## 5. Kế Hoạch Phân Bổ Tệp Tin (File Manifest)
 
-| Tệp tin | Trạng thái | Nhiệm vụ |
-| :--- | :---: | :--- |
-| `src/services/cryptoService.ts` | **TẠO MỚI** | Hàm mã hóa `encryptMessage()`, giải mã `decryptMessage()`, và phái sinh khóa phòng `deriveChatRoomKey()`. |
-| `src/services/chatService.ts` | **CẬP NHẬT** | Các hàm nghiệp vụ: sinh Push Key `push().key`, ghi RTDB `messages`, cập nhật Firestore `lastMessageId`, lắng nghe realtime. |
-| `src/screens/ChatScreen.tsx` | **CẬP NHẬT** | Lắng nghe nhánh RTDB `messages/{chatId}` và tự động mã hóa/giải mã khi chat. |
-| `src/screens/FriendsScreen.tsx` | **CẬP NHẬT** | Lắng nghe collection Firestore `users/{myUid}/chats` để hiển thị danh sách hội thoại xem trước. |
-| `docs/CHAT_ENCRYPTION_SPEC.md` | **ĐÃ CẬP NHẬT** | Bản đặc tả kỹ thuật mô hình Hybrid & Firebase Push Key đã được phê duyệt. |
+| Tệp tin                         |   Trạng thái    | Nhiệm vụ                                                                                                                    |
+| :------------------------------ | :-------------: | :-------------------------------------------------------------------------------------------------------------------------- |
+| `src/services/cryptoService.ts` |   **TẠO MỚI**   | Hàm mã hóa `encryptMessage()`, giải mã `decryptMessage()`, và phái sinh khóa phòng `deriveChatRoomKey()`.                   |
+| `src/services/chatService.ts`   |  **CẬP NHẬT**   | Các hàm nghiệp vụ: sinh Push Key `push().key`, ghi RTDB `messages`, cập nhật Firestore `lastMessageId`, lắng nghe realtime. |
+| `src/screens/ChatScreen.tsx`    |  **CẬP NHẬT**   | Lắng nghe nhánh RTDB `messages/{chatId}` và tự động mã hóa/giải mã khi chat.                                                |
+| `src/screens/FriendsScreen.tsx` |  **CẬP NHẬT**   | Lắng nghe collection Firestore `users/{myUid}/chats` để hiển thị danh sách hội thoại xem trước.                             |
+| `docs/CHAT_ENCRYPTION_SPEC.md`  | **ĐÃ CẬP NHẬT** | Bản đặc tả kỹ thuật mô hình Hybrid & Firebase Push Key đã được phê duyệt.                                                   |
 
 ---
 
 ## 6. Kịch Bản Kiểm Thử & Nghiệm Thu (Test Plan)
 
 ### 6.1. Kiểm thử Thuật toán Mã hóa (Crypto Unit Tests)
-- [ ] **Tính đối xứng:** `decrypt(encrypt(text, key, iv), key, iv) === text` với 100% các loại chuỗi (tiếng Việt có dấu, emoji 😄🚀, ký tự đặc biệt).
-- [ ] **Chống trùng lặp bản mã:** Cùng 1 nội dung text gửi 2 lần liên tiếp phải sinh ra 2 bản mã `ciphertext` hoàn toàn khác nhau do IV khác nhau.
+
+- [x] **Tính đối xứng:** `decrypt(encrypt(text, key, iv), key, iv) === text` với 100% các loại chuỗi (tiếng Việt có dấu, emoji 😄🚀, ký tự đặc biệt).
+- [x] **Chống trùng lặp bản mã:** Cùng 1 nội dung text gửi 2 lần liên tiếp phải sinh ra 2 bản mã `ciphertext` hoàn toàn khác nhau do IV khác nhau.
 
 ### 6.2. Kiểm thử Cơ sở dữ liệu & Push Key (Database Verification)
+
 - [ ] **Push Key đồng nhất:** Kiểm tra `key` của tin nhắn trong RTDB và `lastMessageId` trong Firestore `users/{uid}/chats/{chatId}` phải **trùng khớp 100%** (ví dụ cùng là `-O7xK91aBcDeFgHiJ`).
 - [ ] **Bảo mật tuyệt đối:** Cả trường `ciphertext` bên RTDB và `lastMessageCiphertext` bên Firestore đều chỉ hiển thị chuỗi Base64 vô nghĩa, không lộ dữ liệu gốc.
 
 ### 6.3. Kiểm thử Trải nghiệm Người dùng (E2E User Flow)
+
 - [ ] Alice gửi &rarr; Bob nhận realtime từ RTDB trong < 100ms.
 - [ ] Danh sách Friends trên Firestore tự động nhảy lên đầu và hiển thị số tin nhắn chưa đọc (`unreadCount = 1`).
 - [ ] Khi Bob mở phòng chat, `unreadCount` trên Firestore tự động reset về 0 và tin nhắn cuối `isRead` bên RTDB được đánh dấu `true`.

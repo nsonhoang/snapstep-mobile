@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   StyleSheet,
   View,
@@ -9,6 +15,7 @@ import {
   Platform,
   FlatList,
   Alert,
+  Keyboard,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -22,8 +29,11 @@ import {
   ChatService,
   getChatRoomId,
 } from "../services/chatService";
+import { PostService } from "../services/postService";
 import { ChatBubble } from "../components/ChatBubble";
 import { useAuthStore } from "../stores/authStore";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import { useKeyboardHeight } from "../hooks/useKeyboardHeight";
 
 export const ChatScreen = ({
   navigation,
@@ -46,13 +56,15 @@ export const ChatScreen = ({
   const [sendingMessages, setSendingMessages] = useState<ChatMessageUI[]>([]);
   const [failedMessages, setFailedMessages] = useState<ChatMessageUI[]>([]);
   const [inputText, setInputText] = useState<string>("");
-  const [activeReplyPost, setActiveReplyPost] = useState<ChatReplyPost | undefined>(
-    undefined
-  );
+  const [activeReplyPost, setActiveReplyPost] = useState<
+    ChatReplyPost | undefined
+  >(undefined);
   const [isSending, setIsSending] = useState<boolean>(false);
 
   const listRef = useRef<FlatList<ChatMessageUI>>(null);
   const hasSentInitialRef = useRef<boolean>(false);
+  // lấy chiều cao bàn phím
+  const keyboardHeight = useKeyboardHeight();
 
   // 1. Tải danh sách tin nhắn gửi lỗi từ AsyncStorage khi vào phòng chat
   useEffect(() => {
@@ -80,6 +92,13 @@ export const ChatScreen = ({
     };
   }, [currentUserId, chatId, failedStorageKey]);
 
+  //hàm này để xử lí input khi có bàn phím
+  const keyboardAdaptiveStyle = useAnimatedStyle(() => {
+    return {
+      paddingBottom: keyboardHeight.value,
+    };
+  });
+
   // Hàm lưu trữ danh sách tin nhắn lỗi vào AsyncStorage
   const saveFailedMessages = useCallback(
     async (list: ChatMessageUI[]): Promise<void> => {
@@ -94,7 +113,7 @@ export const ChatScreen = ({
         console.error("Lỗi khi lưu tin nhắn lỗi vào AsyncStorage:", err);
       }
     },
-    [failedStorageKey]
+    [failedStorageKey],
   );
 
   // 2. Tự động gửi tin nhắn phản hồi ảnh Snap nếu được chuyển từ FriendPhotoCard sang
@@ -111,10 +130,17 @@ export const ChatScreen = ({
         currentUserId,
         recipientId,
         initialMessageText,
-        initialReplyPost
-      ).catch((err: Error) => {
-        console.error("Lỗi khi gửi phản hồi ảnh Snap khởi tạo:", err);
-      });
+        initialReplyPost,
+      )
+        .catch((err: Error) => {
+          console.error("Lỗi khi gửi phản hồi ảnh Snap khởi tạo:", err);
+        })
+        .finally(() => {
+          navigation.setParams({
+            initialMessageText: undefined,
+            initialReplyPost: undefined,
+          });
+        });
     }
   }, [initialMessageText, initialReplyPost, currentUserId, recipientId]);
 
@@ -132,7 +158,7 @@ export const ChatScreen = ({
       recipientId,
       (incomingMessages) => {
         setMessages(incomingMessages);
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -152,11 +178,12 @@ export const ChatScreen = ({
     setInputText("");
     setActiveReplyPost(undefined);
 
-    // Tạo tin nhắn tạm ở trạng thái 'sending'
+    // Tạo tin nhắn tạm ở trạng thái 'sending' với ID sinh trước từ Firebase RTDB
     const now = new Date();
     const hours = now.getHours().toString().padStart(2, "0");
     const minutes = now.getMinutes().toString().padStart(2, "0");
-    const tempId = `sending_${Date.now()}`;
+    const chatId = getChatRoomId(currentUserId, recipientId);
+    const tempId = ChatService.generateMessageId(chatId);
     const tempItem: ChatMessageUI = {
       id: tempId,
       senderId: currentUserId,
@@ -174,7 +201,8 @@ export const ChatScreen = ({
         currentUserId,
         recipientId,
         textToSend,
-        replyToSend
+        replyToSend,
+        tempId,
       );
     } catch (error) {
       console.error("Lỗi khi gửi tin nhắn mã hóa:", error);
@@ -187,7 +215,7 @@ export const ChatScreen = ({
       setFailedMessages((prev) => {
         const updated = [failedItem, ...prev];
         AsyncStorage.setItem(failedStorageKey, JSON.stringify(updated)).catch(
-          (e) => console.error("Lỗi lưu AsyncStorage:", e)
+          (e) => console.error("Lỗi lưu AsyncStorage:", e),
         );
         return updated;
       });
@@ -220,7 +248,9 @@ export const ChatScreen = ({
             text: "Xóa",
             style: "destructive",
             onPress: () => {
-              const updated = failedMessages.filter((m) => m.id !== failedMsg.id);
+              const updated = failedMessages.filter(
+                (m) => m.id !== failedMsg.id,
+              );
               saveFailedMessages(updated);
             },
           },
@@ -228,11 +258,14 @@ export const ChatScreen = ({
             text: "Thử lại",
             onPress: async () => {
               // Xóa khỏi danh sách lỗi trước
-              const remaining = failedMessages.filter((m) => m.id !== failedMsg.id);
+              const remaining = failedMessages.filter(
+                (m) => m.id !== failedMsg.id,
+              );
               await saveFailedMessages(remaining);
 
-              // Tạo tin nhắn tạm gửi lại
-              const tempId = `sending_${Date.now()}`;
+              // Tạo tin nhắn tạm gửi lại với ID mới từ RTDB
+              const chatId = getChatRoomId(currentUserId, recipientId);
+              const tempId = ChatService.generateMessageId(chatId);
               const retryItem: ChatMessageUI = {
                 ...failedMsg,
                 id: tempId,
@@ -245,7 +278,8 @@ export const ChatScreen = ({
                   currentUserId,
                   recipientId,
                   failedMsg.text,
-                  failedMsg.replyPost
+                  failedMsg.replyPost,
+                  tempId,
                 );
               } catch (err) {
                 console.error("Lỗi khi thử gửi lại:", err);
@@ -256,42 +290,94 @@ export const ChatScreen = ({
                 };
                 setFailedMessages((prev) => {
                   const updated = [reFailedItem, ...prev];
-                  AsyncStorage.setItem(failedStorageKey, JSON.stringify(updated)).catch(
-                    (e) => console.error("Lỗi lưu AsyncStorage:", e)
-                  );
+                  AsyncStorage.setItem(
+                    failedStorageKey,
+                    JSON.stringify(updated),
+                  ).catch((e) => console.error("Lỗi lưu AsyncStorage:", e));
                   return updated;
                 });
               } finally {
-                setSendingMessages((prev) => prev.filter((m) => m.id !== tempId));
+                setSendingMessages((prev) =>
+                  prev.filter((m) => m.id !== tempId),
+                );
               }
             },
           },
-        ]
+        ],
       );
     },
-    [failedMessages, saveFailedMessages, currentUserId, recipientId, failedStorageKey]
+    [
+      failedMessages,
+      saveFailedMessages,
+      currentUserId,
+      recipientId,
+      failedStorageKey,
+    ],
   );
 
   // 6. Hợp nhất tin nhắn đang gửi, tin nhắn lỗi và tin nhắn đã tải từ RTDB
   // Vì FlatList inverted={true}, các phần tử ở đầu mảng sẽ hiển thị ở dưới đáy giao diện (mới nhất)
   const displayMessages = useMemo(() => {
-    return [...sendingMessages, ...failedMessages, ...messages];
+    // Map các ID đang gửi để tra cứu nhanh
+    const sendingMap = new Map<string, ChatMessageUI>();
+    sendingMessages.forEach((msg) => sendingMap.set(msg.id, msg));
+
+    // Nếu tin nhắn trong messages (từ RTDB) có id trùng với sendingMessages,
+    // ta gắn status: "sending" để giữ nguyên icon đồng hồ loading cho đúng thanh tin nhắn đó.
+    const mergedMessages = messages.map((msg) => {
+      if (sendingMap.has(msg.id)) {
+        return {
+          ...msg,
+          status: "sending" as const,
+        };
+      }
+      return msg;
+    });
+
+    // Chỉ giữ lại những tin nhắn sending nào CHƯA có mặt trong messages từ server (đang offline/chờ mạng)
+    const pendingSending = sendingMessages.filter(
+      (s) => !messages.some((m) => m.id === s.id),
+    );
+
+    return [...pendingSending, ...failedMessages, ...mergedMessages];
   }, [sendingMessages, failedMessages, messages]);
 
   const handleGoBack = (): void => {
     navigation.goBack();
   };
 
+  // Xử lý khi nhấn vào thẻ trích dẫn bài viết Snap để điều hướng sang màn hình chi tiết PostDetail
+  const handlePressReplyPost = useCallback(
+    async (replyPost: ChatReplyPost) => {
+      try {
+        const post = await PostService.getPostById(replyPost.postId);
+        if (post) {
+          navigation.navigate("PostDetail", { post, posts: [post] });
+        } else {
+          Alert.alert(
+            "Khoảnh khắc không tồn tại",
+            "Khoảnh khắc này có thể đã bị gỡ hoặc không còn tồn tại trên hệ thống.",
+          );
+        }
+      } catch (error) {
+        console.error("Lỗi khi tải chi tiết bài viết Snap:", error);
+        Alert.alert("Lỗi", "Không thể xem chi tiết khoảnh khắc vào lúc này.");
+      }
+    },
+    [navigation],
+  );
+
   const renderMessageItem = useCallback(
     ({ item }: { item: ChatMessageUI }) => {
       return (
         <ChatBubble
           message={item}
+          onPressReplyPost={handlePressReplyPost}
           onPressError={handlePressError}
         />
       );
     },
-    [handlePressError]
+    [handlePressError, handlePressReplyPost],
   );
 
   return (
@@ -330,7 +416,6 @@ export const ChatScreen = ({
             <Text style={styles.userNameText} numberOfLines={1}>
               {recipientName}
             </Text>
-            <Text style={styles.userStatusText}>Đang hoạt động</Text>
           </View>
         </View>
 
@@ -341,10 +426,10 @@ export const ChatScreen = ({
       </View>
 
       {/* 2. Danh sách tin nhắn Realtime (Mock) */}
-      <KeyboardAvoidingView
-        style={styles.chatArea}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+      <Animated.View
+        style={[styles.chatArea, keyboardAdaptiveStyle]}
+        // behavior={Platform.OS === "ios" ? "padding" : undefined}
+        // keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
       >
         <View style={styles.messageListWrapper}>
           <FlatList
@@ -363,7 +448,9 @@ export const ChatScreen = ({
           <View style={styles.replyPreviewBar}>
             <View style={styles.replyPreviewLeft}>
               <Ionicons name="sparkles" size={14} color={Colors.primary} />
-              <Text style={styles.replyPreviewTitle}>Đang phản hồi khoảnh khắc</Text>
+              <Text style={styles.replyPreviewTitle}>
+                Đang phản hồi khoảnh khắc
+              </Text>
             </View>
             <Pressable
               onPress={() => setActiveReplyPost(undefined)}
@@ -376,7 +463,7 @@ export const ChatScreen = ({
         )}
 
         {/* 4. Thanh gõ tin nhắn (Input Bar) */}
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer]}>
           <TextInput
             style={styles.input}
             placeholder={`Nhắn tin cho ${recipientName}...`}
@@ -407,7 +494,8 @@ export const ChatScreen = ({
             />
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
+        {/* </KeyboardAvoidingView> */}
+      </Animated.View>
     </SafeAreaView>
   );
 };
@@ -425,6 +513,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255, 255, 255, 0.08)",
     gap: 12,
+    zIndex: 10,
   },
   backBtn: {
     padding: 4,

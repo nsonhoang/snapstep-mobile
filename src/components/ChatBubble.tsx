@@ -12,7 +12,11 @@ interface ChatBubbleProps {
 }
 
 export const ChatBubble = React.memo(
-  ({ message, onPressReplyPost, onPressError }: ChatBubbleProps): React.JSX.Element => {
+  ({
+    message,
+    onPressReplyPost,
+    onPressError,
+  }: ChatBubbleProps): React.JSX.Element => {
     const { isMe, text, time, replyPost, status } = message;
 
     return (
@@ -46,11 +50,7 @@ export const ChatBubble = React.memo(
               />
               <View style={styles.replyInfo}>
                 <View style={styles.replyBadgeRow}>
-                  <Ionicons
-                    name="sparkles"
-                    size={12}
-                    color={Colors.primary}
-                  />
+                  <Ionicons name="sparkles" size={12} color={Colors.primary} />
                   <Text style={styles.replyBadgeText}>Khoảnh khắc Snap</Text>
                 </View>
 
@@ -78,7 +78,12 @@ export const ChatBubble = React.memo(
 
           {/* Nội dung tin nhắn chữ */}
           {Boolean(text) && (
-            <Text style={[styles.messageText, isMe ? styles.messageTextMe : styles.messageTextThem]}>
+            <Text
+              style={[
+                styles.messageText,
+                isMe ? styles.messageTextMe : styles.messageTextThem,
+              ]}
+            >
               {text}
             </Text>
           )}
@@ -107,7 +112,10 @@ export const ChatBubble = React.memo(
               <Pressable
                 onPress={() => onPressError?.(message)}
                 hitSlop={6}
-                style={({ pressed }) => [styles.errorBtn, pressed && { opacity: 0.6 }]}
+                style={({ pressed }) => [
+                  styles.errorBtn,
+                  pressed && { opacity: 0.6 },
+                ]}
               >
                 <Ionicons
                   name="alert-circle"
@@ -121,7 +129,7 @@ export const ChatBubble = React.memo(
         </View>
       </View>
     );
-  }
+  },
 );
 
 const styles = StyleSheet.create({
@@ -158,6 +166,7 @@ const styles = StyleSheet.create({
   // Khung trích dẫn bài viết
   replyPostCard: {
     flexDirection: "row",
+    aspectRatio: 3 / 4,
     alignItems: "center",
     borderRadius: 12,
     padding: 6,
@@ -175,8 +184,8 @@ const styles = StyleSheet.create({
     borderLeftColor: Colors.primary,
   },
   replyThumbnail: {
-    width: 44,
-    height: 58,
+    height: 150,
+    aspectRatio: 3 / 4,
     borderRadius: 8,
     backgroundColor: Colors.surface,
   },
