@@ -65,7 +65,8 @@ export const UserService = {
       if (authUid && d.id === authUid) return; // Bỏ qua chính bản thân mình
 
       const data = d.data() as User;
-      const fullName = `${data.firstName || ""} ${data.lastName || ""}`.toLowerCase();
+      const fullName =
+        `${data.firstName || ""} ${data.lastName || ""}`.toLowerCase();
       const email = (data.email || "").toLowerCase();
       const username = (data.username || "").toLowerCase();
 
@@ -236,6 +237,39 @@ export const UserService = {
       );
     } catch (error) {
       console.error(`Lỗi khi giảm photosCount cho user ${uid}:`, error);
+    }
+  },
+  // hàm update khu vực mới mình đã đi qua // kiêm tra xem đã có chưa
+  updateConqueredProvinces: async (
+    uid: string,
+    provinceName: string,
+    photoId: string,
+  ): Promise<void> => {
+    if (!uid || !provinceName) return;
+    try {
+      const db = getFirestore();
+      const userRef = doc(db, "users", uid);
+      await setDoc(
+        userRef,
+        {
+          conqueredProvinces: {
+            [provinceName]: {
+              unlockedAt: serverTimestamp(),
+              firstPhotoId: photoId,
+            },
+          },
+          stats: {
+            conqueredProvincesCount: FieldValue.increment(1),
+          },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    } catch (error) {
+      console.error(
+        `Lỗi khi update conqueredProvinces cho user ${uid}:`,
+        error,
+      );
     }
   },
 };

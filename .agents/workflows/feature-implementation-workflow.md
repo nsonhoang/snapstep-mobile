@@ -13,8 +13,8 @@ This document defines the standard 5-phase engineering workflow for Developers a
 |---|---|---|
 | **Phase 1: Analysis & Spec** | `using-agent-skills`<br>`interview-me`<br>`idea-refine`<br>`spec-driven-development`<br>`source-driven-development` | - Route skills dynamically (**Rule 5**).<br>- Interview to clarify underspecified requirements.<br>- Draft formal specifications for complex features.<br>- Ground decisions in official Expo SDK 57 docs (**Rule 2**). |
 | **Phase 2: Planning & Architecture** | `planning-and-task-breakdown`<br>`api-and-interface-design`<br>`security-and-hardening` | - Decompose into thin vertical tasks.<br>- Enforce strictly-typed contracts (Zero `any`).<br>- Design Firebase rules & data security.<br>- **Ask explicit permission before coding (Rule 1)**. |
-| **Phase 3: Incremental Implementation** | `incremental-implementation`<br>`expo-native-ui`<br>`frontend-ui-engineering`<br>`performance-optimization` | - Build in small verifiable slices (**Rule 3**).<br>- Craft native-feeling UI (`Pressable`, `Colors.ts`, `Value.ts`).<br>- Guarantee 60fps animations with `react-native-reanimated`.<br>- Maintain Vietnamese code comments policy. |
-| **Phase 4: Verification & Quality Gate** | `test-driven-development`<br>`code-review-and-quality`<br>`code-simplification`<br>`debugging-and-error-recovery` | - Verify TypeScript compilation `npx tsc --noEmit` (0 errors).<br>- Append test cases to `docs/TEST_SCENARIOS.md`.<br>- Conduct 5-axis code review before handover.<br>- Isolate and eliminate root causes of bugs. |
+| **Phase 3: Incremental Implementation** | `incremental-implementation`<br>`expo-design-system`<br>`expo-native-ui`<br>`frontend-ui-engineering`<br>`performance-optimization` | - Build in small verifiable slices (**Rule 3**).<br>- Enforce Design Tokens (`Colors`, `Spacing`, `Typography`, `Radius`).<br>- Build modular components conforming to Component Contracts.<br>- Craft native-feeling UI (`Pressable`, `Colors.ts`, `Value.ts`).<br>- Guarantee 60fps animations with `react-native-reanimated`.<br>- Maintain Vietnamese code comments policy. |
+| **Phase 4: Verification & Quality Gate** | `test-driven-development`<br>`code-review-and-quality`<br>`code-simplification`<br>`expo-design-system`<br>`debugging-and-error-recovery` | - Verify TypeScript compilation `npx tsc --noEmit` (0 errors).<br>- Append test cases to `docs/TEST_SCENARIOS.md`.<br>- Conduct 5-axis code review before handover.<br>- Run Design System drift audit (detect hex escapes & raw font sizes).<br>- Enforce Anti-Monolith Gate (< 250-300 lines per file).<br>- Isolate and eliminate root causes of bugs. |
 | **Phase 5: Delivery & Versioning** | `shipping-and-launch`<br>`git-workflow-and-versioning` | - Provide concise walkthrough & testing instructions.<br>- Guide atomic Git staging.<br>- **Never execute auto-commit (Rule 4)**. |
 
 ---
@@ -60,17 +60,25 @@ All code must strictly reside in the designated subdirectories of `src/`:
   - Update `RootStackParamList` in `src/navigation/types.ts`.
   - Type all navigation props strictly via `NativeStackScreenProps` or typed hooks.
 
-* **Step 3.2: Service & Business Logic Layer (`src/services/`):**
+* **Step 3.2: Service & Business Logic Layer (`src/services/`, `src/hooks/`):**
   - Encapsulate network requests, Firebase queries, and crypto operations cleanly.
+  - Extract reusable timing, debounce, or listener behaviors into custom hooks under `src/hooks/`.
   - Handle asynchronous errors gracefully using structured `try/catch` blocks.
 
-* **Step 3.3: Modular Reusable Components Layer (`src/components/` - `expo-native-ui`):**
-  - **Modularity (Single Responsibility):** Extract all reusable elements into small, dedicated components. Monolithic screens are strictly prohibited.
-  - **Touch Component:** Exclusively use React Native's modern `Pressable` component (never `TouchableOpacity`).
-  - **Colors Constant First Policy:** Always source colors from `src/constants/Colors.ts` (`Colors.primary`, `Colors.background`, `Colors.error`, etc.). Never hardcode hex codes.
-  - **Screen Dimensions Layout Policy:** Always import dimensions from `src/constants/Value.ts` (`Value.widthScreen`, `Value.heightScreen`).
+* **Step 3.3: Modular Reusable Components Layer (`src/components/` - `expo-design-system` & `expo-native-ui`):**
+  - **Design System Tokens (`expo-design-system`):**
+    - **Colors Constant First:** Always source colors from `src/constants/Colors.ts` (`Colors.primary`, `Colors.background`, `Colors.surface`, etc.). Never hardcode hex codes.
+    - **Typography Ramp:** Always use the standard type ramp (`src/constants/Typography.ts` or `ThemedText`). Never specify arbitrary inline `fontSize` numbers.
+    - **4-Point Spacing Grid:** Layout paddings, margins, and gaps must strictly adhere to the 4-point grid (`src/constants/Spacing.ts`: 4, 8, 12, 16, 24, 32, 48). No arbitrary spacing numbers.
+    - **Radius & Borders:** Radius values must come from `src/constants/Radius.ts`, paired with `borderCurve: "continuous"` on iOS.
+  - **Component Contract:**
+    - Explicitly define: **Variants** (`variant`), **Sizes** (`size`), **States** (`pressed`, `disabled`, `loading`), and **Style Overrides** (merged last).
+    - **Composition over Configuration:** Accept `children` rather than proliferating content props (`leftIcon`, `subtitleText`, `badgeCount`).
+    - **Promotion & Extraction Rule:** Promote views into `src/components/` only when they appear across $\ge 2$ screens and have a named, distinct role.
+  - **Touch Interactions:** Exclusively use React Native's modern `Pressable` component with a native-feeling pressed style function (never `TouchableOpacity`).
+  - **Screen Dimensions:** Always import dimensions from `src/constants/Value.ts` (`Value.widthScreen`, `Value.heightScreen`).
   - **Screen Background Color:** Pure black `#000` / `Colors.background` required for screen backgrounds.
-  - **Animation Library Rule:** Use `react-native-reanimated` exclusively for 60fps animations.
+  - **Animation Standard:** Use `react-native-reanimated` exclusively for smooth 60fps animations on the UI thread.
   - **Vietnamese Comments Policy:** Always write code comments in Vietnamese (`tiếng Việt`) for local team clarity.
 
 * **Step 3.4: Screen Assembly Layer (`src/screens/`):**
@@ -79,17 +87,24 @@ All code must strictly reside in the designated subdirectories of `src/`:
 
 ---
 
-### Phase 4: Verification & Quality Gate (QA Phase)
+### Phase 4: Verification & Quality Gate (QA & Simplification Phase)
 
 1. **Static Typecheck:**
    - Execute: `npx tsc --noEmit`.
-   - Mandatory prerequisite: **Exit Code 0 (0 errors)** before proceeding.
-2. **Test Scenario Upgrades (`test-driven-development`):**
+   - Mandatory prerequisite: **Exit Code 0 (0 errors, Zero `any`)** before proceeding.
+2. **Design System Drift Audit (`expo-design-system`):**
+   - Audit for escaped hex colors outside theme files (`grep -rEn '#[0-9a-fA-F]{3,8}\b' src`).
+   - Audit for raw `fontSize` declarations bypassing `ThemedText` or the type ramp.
+3. **Anti-Monolith & File Health Gate (`code-simplification`):**
+   - Screen and component files MUST remain focused and maintainable.
+   - **Hard Threshold:** No single screen, modal, or component file should exceed **250 - 300 lines of code**.
+   - If a file exceeds 300 lines or violates Single Responsibility, the Agent MUST trigger `code-simplification` to extract child components and custom hooks before marking the task complete.
+4. **Test Scenario Upgrades (`test-driven-development`):**
    - Update `docs/TEST_SCENARIOS.md` with new test cases (including happy paths, offline/network errors, and persistence validation).
    - Update the Pre-Release Regression Checklist table.
-3. **Multi-Axis Review (`code-review-and-quality` & `code-simplification`):**
-   - Verify zero `any` usage, remove unused abstractions, and confirm no hardcoded styling.
-4. **Root-Cause Debugging (`debugging-and-error-recovery`):**
+5. **Multi-Axis Review (`code-review-and-quality`):**
+   - Conduct 5-axis review: Correctness, Readability, Architecture, Security, and Performance.
+6. **Root-Cause Debugging (`debugging-and-error-recovery`):**
    - If runtime bugs occur on device testing, diagnose the architectural root cause rather than applying temporary patches.
 
 ---
@@ -112,9 +127,13 @@ A feature is considered 100% complete only when all of the following criteria ar
 - [ ] Validated against official Expo SDK 57 / React Navigation documentation (**Rule 2**).
 - [ ] Strict compliance with the `src/` directory architecture.
 - [ ] 100% adherence to the **Zero `any` Policy**.
-- [ ] `Pressable` used for touches; colors from `Colors.ts`; dimensions from `Value.ts`.
-- [ ] Animations powered exclusively by `react-native-reanimated`.
+- [ ] **Design Tokens Compliance:** Colors from `Colors.ts`, spacing on 4-point grid, typography from type ramp.
+- [ ] **Component Contract:** Reusable components expose explicit `variant`, `size`, and 60fps `pressed` feedback via `Pressable`.
+- [ ] **Anti-Monolith Gate:** No screen or component file exceeds 250 - 300 lines; complex logic extracted into dedicated hooks/components.
+- [ ] `Pressable` used for all touches; screen dimensions from `Value.ts`.
+- [ ] Animations powered exclusively by `react-native-reanimated` on UI thread.
 - [ ] All code comments written in Vietnamese.
 - [ ] Static typecheck `npx tsc --noEmit` exits with **0 errors (Exit Code 0)**.
 - [ ] QA test scenarios documented in `docs/TEST_SCENARIOS.md`.
 - [ ] **No automatic `git commit` executed** (**Rule 4**).
+

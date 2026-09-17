@@ -32,6 +32,9 @@ import { ImageService } from "../services/imageService";
 import { useTripStore } from "../stores/tripStore";
 import { Post, PostService } from "../services/postService";
 import { serverTimestamp } from "@react-native-firebase/firestore";
+import { extractProvinceName } from "../utils/extractProvinceName";
+import { useUserStore } from "../stores/userStore";
+import { UserService } from "../services/userService";
 
 export const HomeScreen = ({
   navigation,
@@ -228,19 +231,21 @@ export const HomeScreen = ({
         console.log("URL của ảnh trên Storage:", uploadedImageUrl);
 
         if (!uploadedImageUrl) {
-          throw new Error("Không thể tải ảnh lên máy chủ (Upload ảnh thất bại).");
+          throw new Error(
+            "Không thể tải ảnh lên máy chủ (Upload ảnh thất bại).",
+          );
         }
 
         // Tọa độ bài viết: Chỉ lưu khi người dùng bật Chia sẻ lên bản đồ (shareToMap === true)
         const position: Location | null = shareToMap
-          ? (postLocation ||
-              (location
-                ? {
-                    address: location.address || "Vị trí không xác định",
-                    longitude: location.longitude,
-                    latitude: location.latitude,
-                  }
-                : null))
+          ? postLocation ||
+            (location
+              ? {
+                  address: location.address || "Vị trí không xác định",
+                  longitude: location.longitude,
+                  latitude: location.latitude,
+                }
+              : null)
           : null;
 
         const post: Post = {
@@ -259,7 +264,51 @@ export const HomeScreen = ({
         };
 
         // 2. Tạo bài viết trong Firestore
-        await PostService.createPost(post);
+        const newPost = await PostService.createPost(post);
+
+        // 3. Xử lý desbloquer tỉnh/thành phố
+        if (position?.address) {
+          const provinceName = extractProvinceName(position.address);
+          if (provinceName) {
+            //lấy thông tin user trên bộ nhớ đệm
+            const cachedUser = useUserStore.getState().users[user.uid];
+            const isNewProvince = Boolean(
+              cachedUser?.conqueredProvinces?.[provinceName],
+            );
+
+            //nếu có
+            if (!isNewProvince) {
+              await UserService.updateConqueredProvinces(
+                user.uid,
+                provinceName,
+                newPost,
+              );
+
+              // cập nhật state
+              useUserStore.setState((state) => ({
+                users: {
+                  ...state.users,
+                  [user.uid]: {
+                    ...state.users[user.uid],
+                    conqueredProvinces: {
+                      ...state.users[user.uid]?.conqueredProvinces,
+                      [provinceName]: {
+                        unlockedAt: new Date() as any,
+                        firstPhotoId: newPost,
+                      },
+                    },
+                    stats: {
+                      ...state.users[user.uid]?.stats,
+                      conqueredProvincesCount:
+                        (state.users[user.uid]?.stats
+                          ?.conqueredProvincesCount || 0) + 1,
+                    },
+                  },
+                },
+              }));
+            }
+          }
+        }
 
         // Đóng modal xem trước và xóa ảnh tạm
         setIsPreviewVisible(false);
@@ -271,7 +320,10 @@ export const HomeScreen = ({
 
       // 👉 CƠ CHẾ ROLLBACK: Nếu ảnh đã upload lên Storage nhưng tạo bài viết thất bại -> Xóa ngay ảnh trên Storage!
       if (uploadedImageUrl) {
-        console.log("Đang kích hoạt Rollback xóa ảnh rác trên Storage:", uploadedImageUrl);
+        console.log(
+          "Đang kích hoạt Rollback xóa ảnh rác trên Storage:",
+          uploadedImageUrl,
+        );
         try {
           await ImageService.deleteImage(uploadedImageUrl);
           console.log("Đã rollback dọn rác ảnh thành công!");

@@ -12,6 +12,8 @@ import {
   DocumentSnapshot,
   addDoc,
   doc,
+  getDoc,
+  updateDoc,
   setDoc,
   serverTimestamp,
 } from "@react-native-firebase/firestore";
@@ -112,16 +114,50 @@ export const TripService = {
     return { trips, lastDoc: snapshot.docs[snapshot.docs.length - 1] };
   },
 
-  createTrip: async (trip: Trip) => {
+  // Lấy chi tiết chuyến đi theo ID
+  getTripById: async (tripId: string): Promise<TripWithId | null> => {
+    if (!tripId) return null;
+    try {
+      const db = getFirestore();
+      const tripRef = doc(db, "trips", tripId);
+      const tripSnap = await getDoc(tripRef);
+      if (tripSnap.exists()) {
+        return {
+          id: tripSnap.id,
+          ...(tripSnap.data() as Trip),
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error(`Lỗi khi lấy thông tin chuyến đi ${tripId}:`, error);
+      return null;
+    }
+  },
+
+  // Cập nhật thông tin chuyến đi
+  updateTrip: async (tripId: string, data: Partial<Trip>): Promise<void> => {
+    if (!tripId) return;
+    try {
+      const db = getFirestore();
+      const tripRef = doc(db, "trips", tripId);
+      await updateDoc(tripRef, {
+        ...data,
+        updatedAt: serverTimestamp(),
+      });
+      console.log(`Cập nhật chuyến đi ${tripId} thành công`);
+    } catch (error) {
+      console.error(`Lỗi khi cập nhật chuyến đi ${tripId}:`, error);
+      throw error;
+    }
+  },
+
+  // Tạo chuyến đi mới và trả về ID document
+  createTrip: async (trip: Trip): Promise<string> => {
     const db = getFirestore();
     const tripsRef = collection(db, "trips");
-    await addDoc(tripsRef, trip)
-      .then(() => {
-        console.log("Trip created successfully");
-      })
-      .catch((error) => {
-        console.error("Error creating trip:", error);
-      });
+    const docRef = await addDoc(tripsRef, trip);
+    console.log("Tạo chuyến đi thành công với ID:", docRef.id);
+    return docRef.id;
   },
 
   // Thêm postId vào mảng postIds của chuyến đi

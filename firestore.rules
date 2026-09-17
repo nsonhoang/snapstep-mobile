@@ -77,8 +77,12 @@ service cloud.firestore {
       // ĐỌC: CHỈ TÁC GIẢ HOẶC BẠN BÈ ĐÃ KẾT BẠN MỚI ĐƯỢC XEM BÀI
       allow read: if laBanBe(resource.data.authorId);
 
-      // TẠO MỚI: Bắt buộc người đăng bài phải gán authorId trùng khớp với UID của mình
-      allow create: if daDangNhap() && request.resource.data.authorId == request.auth.uid;
+      // TẠO MỚI: Bắt buộc người đăng bài phải gán authorId trùng khớp với UID của mình và bắt buộc phải có tripId hợp lệ
+      allow create: if daDangNhap() && 
+                    request.resource.data.authorId == request.auth.uid &&
+                    'tripId' in request.resource.data &&
+                    request.resource.data.tripId is string &&
+                    request.resource.data.tripId.size() > 0;
 
       // CẬP NHẬT: 
       // - Hoặc chính tác giả sửa bài

@@ -12,6 +12,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useAuthStore } from '../stores/authStore';
 import { useFriendshipStore } from '../stores/friendshipStore';
+import { useDebounce } from '../hooks/useDebounce';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SearchBuddies'>;
 
@@ -43,19 +44,18 @@ export const SearchBuddiesScreen = ({ navigation }: Props): React.JSX.Element =>
     return () => unsubscribe();
   }, [currentUserId]);
 
-  // Xử lý tìm kiếm với cơ chế debounce 400ms
+  // Debounce từ khóa tìm kiếm 400ms chống spam query Firestore
+  const debouncedSearchQuery = useDebounce(searchQuery, 400);
+
+  // Xử lý tìm kiếm khi debouncedSearchQuery thay đổi
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    if (!debouncedSearchQuery.trim()) {
       clearSearch();
       return;
     }
 
-    const timer = setTimeout(() => {
-      searchUsers(searchQuery, currentUserId);
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, currentUserId]);
+    searchUsers(debouncedSearchQuery, currentUserId);
+  }, [debouncedSearchQuery, currentUserId, searchUsers, clearSearch]);
 
   // Xử lý các thao tác kết bạn
   const handleAdd = useCallback(

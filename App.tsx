@@ -4,16 +4,19 @@ import { StatusBar } from "expo-status-bar";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { AlertProvider } from "./src/components/AlertProvider";
 import { RootNavigator } from "./src/navigation/RootNavigator";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function App(): React.JSX.Element {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <BottomSheetModalProvider>
-        <AlertProvider>
-          <StatusBar style="inverted" />
-          <RootNavigator />
-        </AlertProvider>
-      </BottomSheetModalProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <BottomSheetModalProvider>
+          <AlertProvider>
+            <StatusBar style="inverted" />
+            <RootNavigator />
+          </AlertProvider>
+        </BottomSheetModalProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }

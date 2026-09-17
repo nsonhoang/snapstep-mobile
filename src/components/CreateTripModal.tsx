@@ -1,8 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, Modal, Pressable, TextInput, KeyboardAvoidingView, ScrollView } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  Modal,
+  Pressable,
+  TextInput,
+  KeyboardAvoidingView,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Timestamp, serverTimestamp } from '@react-native-firebase/firestore';
 import { Colors } from '../constants/Colors';
-import { Value } from '../constants/Value';
+import { Spacing } from '../constants/Spacing';
+import { Radius } from '../constants/Radius';
+import { Typography } from '../constants/Typography';
+import { TripService, TripDetail } from '../services/tripService';
+import { ImageService } from '../services/imageService';
+import { useAuthStore } from '../stores/authStore';
+import { useTripStore } from '../stores/tripStore';
+import { CoverImagePickerModal } from './CoverImagePickerModal';
+import { useAlert } from './AlertProvider';
+import { TripCoverPickerSection } from './TripCoverPickerSection';
+import { LocationSearchInput } from './LocationSearchInput';
+import { TripScheduleSection, ScheduleItem } from './TripScheduleSection';
+
+const DEFAULT_COVER_IMAGE =
+  'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?q=80&w=800';
 
 export interface TripData {
   id?: string;
@@ -13,51 +38,200 @@ export interface TripData {
   schedules: ScheduleItem[];
 }
 
+export type { ScheduleItem };
+
 interface CreateTripModalProps {
   visible: boolean;
   onClose: () => void;
   initialData?: TripData;
+  onSuccess?: (tripId: string) => void;
 }
 
-interface ScheduleItem {
-  id: string;
-  dateTime: string;
-  description: string;
-}
-
-export const CreateTripModal = ({ visible, onClose, initialData }: CreateTripModalProps): React.JSX.Element => {
-  const [tripName, setTripName] = useState('');
-  const [location, setLocation] = useState('');
-  const [description, setDescription] = useState('');
+/**
+ * Modal Tạo / Chỉnh sửa hành trình du lịch
+ * Đã được tinh gọn theo chuẩn Clean Architecture & Anti-Monolith (< 250 dòng)
+ * Tách rời các phần ảnh bìa, tìm kiếm địa điểm, và lịch trình thành các component con độc lập.
+ */
+export const CreateTripModal = ({
+  visible,
+  onClose,
+  initialData,
+  onSuccess,
+}: CreateTripModalProps): React.JSX.Element => {
+  const [tripName, setTripName] = useState<string>('');
+  const [location, setLocation] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [coverImageUri, setCoverImageUri] = useState<string>('');
+  const [isLocalImage, setIsLocalImage] = useState<boolean>(false);
+  const [isCoverPickerVisible, setIsCoverPickerVisible] = useState<boolean>(false);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
-  // Điền dữ liệu nếu đang ở chế độ Chỉnh Sửa
+  const authUser = useAuthStore((state) => state.user);
+  const { showAlert } = useAlert();
+
+  // Điền dữ liệu ban đầu nếu đang ở chế độ Chỉnh Sửa
   useEffect(() => {
     if (visible) {
       if (initialData) {
-        setTripName(initialData.title);
-        setLocation(initialData.location);
-        setDescription(initialData.description);
+        setTripName(initialData.title || '');
+        setLocation(initialData.location || '');
+        setDescription(initialData.description || '');
+        setCoverImageUri(initialData.coverImage || '');
+        setIsLocalImage(false);
         setSchedules(initialData.schedules || []);
       } else {
         setTripName('');
         setLocation('');
         setDescription('');
+        setCoverImageUri('');
+        setIsLocalImage(false);
         setSchedules([]);
       }
     }
   }, [visible, initialData]);
 
-  const addSchedule = () => {
-    setSchedules([...schedules, { id: Date.now().toString(), dateTime: '', description: '' }]);
+  // Quản lý trạm dừng
+  const handleAddSchedule = () => {
+    setSchedules((prev) => [
+      ...prev,
+      { id: Date.now().toString(), dateTime: '', description: '' },
+    ]);
   };
 
-  const updateSchedule = (id: string, field: keyof ScheduleItem, value: string) => {
-    setSchedules(schedules.map(item => item.id === id ? { ...item, [field]: value } : item));
+  const handleUpdateSchedule = (
+    id: string,
+    field: keyof ScheduleItem,
+    value: string,
+  ) => {
+    setSchedules((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)),
+    );
   };
 
-  const removeSchedule = (id: string) => {
-    setSchedules(schedules.filter(item => item.id !== id));
+  const handleRemoveSchedule = (id: string) => {
+    setSchedules((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  // Lưu chuyến đi vào Firestore kèm cơ chế Giao dịch & Rollback an toàn
+  const handleSaveTrip = async () => {
+    if (!tripName.trim()) {
+      showAlert({
+        title: 'Thông báo',
+        message: 'Vui lòng nhập tên hành trình.',
+        type: 'warning',
+      });
+      return;
+    }
+
+    if (!authUser?.uid) {
+      showAlert({
+        title: 'Thông báo',
+        message: 'Bạn cần đăng nhập để thực hiện tính năng này.',
+        type: 'warning',
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    let newlyUploadedCoverUrl: string | null = null;
+    const oldCoverImage = initialData?.coverImage;
+
+    try {
+      let finalCover = coverImageUri.trim();
+      if (isLocalImage && coverImageUri.trim()) {
+        const uploadedUrl = await ImageService.uploadImage(
+          coverImageUri,
+          authUser.uid,
+        );
+        if (uploadedUrl) {
+          newlyUploadedCoverUrl = uploadedUrl;
+          finalCover = uploadedUrl;
+        } else {
+          showAlert({
+            title: 'Lỗi',
+            message: 'Không thể tải ảnh bìa lên hệ thống. Vui lòng thử lại sau.',
+            type: 'error',
+          });
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      if (!finalCover) {
+        finalCover = DEFAULT_COVER_IMAGE;
+      }
+
+      const tripDetails: TripDetail[] = schedules
+        .filter((s) => s.description.trim() !== '' || s.dateTime.trim() !== '')
+        .map((s) => ({
+          time: Timestamp.now(),
+          describe: s.dateTime ? `[${s.dateTime}] ${s.description}` : s.description,
+        }));
+
+      if (initialData?.id) {
+        await TripService.updateTrip(initialData.id, {
+          title: tripName.trim(),
+          description: description.trim() || location.trim(),
+          coverImageUrl: finalCover,
+          details: tripDetails,
+        });
+
+        if (
+          isLocalImage &&
+          oldCoverImage &&
+          oldCoverImage.includes('firebase') &&
+          oldCoverImage !== finalCover
+        ) {
+          await ImageService.deleteImage(oldCoverImage);
+        }
+
+        showAlert({
+          title: 'Thành công',
+          message: 'Hành trình đã được cập nhật!',
+          type: 'success',
+        });
+        await useTripStore.getState().fetchTrips(authUser.uid);
+        onSuccess?.(initialData.id);
+        onClose();
+      } else {
+        const newTripId = await TripService.createTrip({
+          userId: authUser.uid,
+          title: tripName.trim(),
+          description: description.trim() || location.trim(),
+          coverImageUrl: finalCover,
+          details: tripDetails,
+          postIds: [],
+          like: 0,
+          love: 0,
+          hate: 0,
+          status: 'planning',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        showAlert({
+          title: 'Thành công',
+          message: 'Tạo hành trình mới thành công!',
+          type: 'success',
+        });
+        await useTripStore.getState().fetchTrips(authUser.uid);
+        onSuccess?.(newTripId);
+        onClose();
+      }
+    } catch (error) {
+      console.error('Lỗi khi lưu hành trình:', error);
+      if (newlyUploadedCoverUrl) {
+        await ImageService.deleteImage(newlyUploadedCoverUrl);
+      }
+      showAlert({
+        title: 'Lỗi',
+        message: 'Đã có lỗi xảy ra khi lưu hành trình. Vui lòng thử lại.',
+        type: 'error',
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -67,29 +241,38 @@ export const CreateTripModal = ({ visible, onClose, initialData }: CreateTripMod
       transparent={true}
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.modalOverlay}
         behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.modalContent}>
-          {/* Header */}
+          {/* Header Modal */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>{initialData ? 'Chỉnh sửa chuyến đi' : 'Tạo chuyến đi mới'}</Text>
-            <Pressable onPress={onClose} style={styles.closeButton}>
+            <Text style={styles.headerTitle}>
+              {initialData ? 'Chỉnh sửa hành trình' : 'Tạo hành trình mới'}
+            </Text>
+            <Pressable onPress={onClose} style={styles.closeButton} hitSlop={8}>
               <MaterialIcons name="close" size={24} color={Colors.white} />
             </Pressable>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            
-            {/* Ảnh đại diện chuyến đi */}
-            <Text style={styles.label}>Ảnh đại diện chuyến đi *</Text>
-            <Pressable style={styles.imagePickerButton}>
-              <MaterialIcons name="add-photo-alternate" size={32} color={Colors.textMuted} />
-              <Text style={styles.imagePickerText}>Nhấn để tải ảnh lên</Text>
-            </Pressable>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* 1. Phần Chọn & Xem trước Ảnh bìa */}
+            <TripCoverPickerSection
+              coverImageUri={coverImageUri}
+              isLocalImage={isLocalImage}
+              onOpenPicker={() => setIsCoverPickerVisible(true)}
+              onRemoveCover={() => {
+                setCoverImageUri('');
+                setIsLocalImage(false);
+              }}
+            />
 
-            {/* Tên hành trình */}
+            {/* 2. Tên hành trình */}
             <Text style={styles.label}>Tên hành trình *</Text>
             <TextInput
               style={styles.input}
@@ -99,20 +282,13 @@ export const CreateTripModal = ({ visible, onClose, initialData }: CreateTripMod
               onChangeText={setTripName}
             />
 
-            {/* Địa điểm */}
-            <Text style={styles.label}>Địa điểm *</Text>
-            <View style={styles.inputIconContainer}>
-              <MaterialIcons name="location-on" size={20} color={Colors.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={[styles.input, styles.inputWithIcon]}
-                placeholder="Thêm địa điểm (cho phép chọn nhiều)"
-                placeholderTextColor={Colors.textMuted}
-                value={location}
-                onChangeText={setLocation}
-              />
-            </View>
+            {/* 3. Phần Nhập & Gợi ý Địa điểm thông minh */}
+            <LocationSearchInput
+              value={location}
+              onChangeLocation={setLocation}
+            />
 
-            {/* Mô tả */}
+            {/* 4. Mô tả */}
             <Text style={styles.label}>Mô tả</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
@@ -125,61 +301,50 @@ export const CreateTripModal = ({ visible, onClose, initialData }: CreateTripMod
               onChangeText={setDescription}
             />
 
-            {/* Lịch trình (Tùy chọn) */}
-            <Text style={styles.label}>Lịch trình (Tùy chọn)</Text>
-
-            {schedules.map((schedule, index) => (
-              <View key={schedule.id} style={styles.scheduleItem}>
-                <View style={styles.scheduleHeader}>
-                  <Text style={styles.scheduleTitle}>Trạm dừng {index + 1}</Text>
-                  <Pressable onPress={() => removeSchedule(schedule.id)}>
-                    <MaterialIcons name="delete-outline" size={20} color={Colors.textMuted} />
-                  </Pressable>
-                </View>
-
-                {/* Date/Time Picker Mock */}
-                <View style={styles.inputIconContainer}>
-                  <MaterialIcons name="access-time" size={20} color={Colors.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    style={[styles.input, styles.inputWithIcon, { marginBottom: 8 }]}
-                    placeholder="Chọn ngày / giờ (VD: 12/10 08:00)"
-                    placeholderTextColor={Colors.textMuted}
-                    value={schedule.dateTime}
-                    onChangeText={(text) => updateSchedule(schedule.id, 'dateTime', text)}
-                  />
-                </View>
-
-                {/* Mô tả hoạt động */}
-                <TextInput
-                  style={[styles.input, styles.textArea, { height: 80 }]}
-                  placeholder="Mô tả hoạt động tại trạm này..."
-                  placeholderTextColor={Colors.textMuted}
-                  multiline
-                  textAlignVertical="top"
-                  value={schedule.description}
-                  onChangeText={(text) => updateSchedule(schedule.id, 'description', text)}
-                />
-              </View>
-            ))}
-
-            <Pressable style={styles.addScheduleButton} onPress={addSchedule}>
-              <MaterialIcons name="add-circle-outline" size={20} color={Colors.primary} />
-              <Text style={styles.addScheduleText}>Thêm ngày / trạm dừng mới</Text>
-            </Pressable>
-
+            {/* 5. Phần Quản lý Lịch trình trạm dừng */}
+            <TripScheduleSection
+              schedules={schedules}
+              onAddSchedule={handleAddSchedule}
+              onUpdateSchedule={handleUpdateSchedule}
+              onRemoveSchedule={handleRemoveSchedule}
+            />
           </ScrollView>
 
-          {/* Footer Buttons */}
+          {/* Footer nút hành động */}
           <View style={styles.footer}>
-            <Pressable style={styles.cancelButton} onPress={onClose}>
+            <Pressable
+              style={styles.cancelButton}
+              onPress={onClose}
+              disabled={isSaving}
+            >
               <Text style={styles.cancelButtonText}>Hủy</Text>
             </Pressable>
-            <Pressable style={styles.saveButton}>
-              <Text style={styles.saveButtonText}>Lưu chuyến đi</Text>
+            <Pressable
+              style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+              onPress={handleSaveTrip}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color={Colors.background} />
+              ) : (
+                <Text style={styles.saveButtonText}>
+                  {initialData ? 'Lưu thay đổi' : 'Tạo hành trình'}
+                </Text>
+              )}
             </Pressable>
           </View>
-
         </View>
+
+        {/* Modal chọn ảnh bìa từ thư viện máy hoặc mẫu có sẵn */}
+        <CoverImagePickerModal
+          visible={isCoverPickerVisible}
+          onClose={() => setIsCoverPickerVisible(false)}
+          currentImageUri={coverImageUri}
+          onSelectCoverImage={(uri: string, isLocal: boolean) => {
+            setCoverImageUri(uri);
+            setIsLocalImage(isLocal);
+          }}
+        />
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -188,138 +353,92 @@ export const CreateTripModal = ({ visible, onClose, initialData }: CreateTripMod
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    height: Value.heightScreen * 0.85,
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    maxHeight: '92%',
+    flex: 1,
+    borderTopWidth: 1,
+    borderTopColor: Colors.glassBorder,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: Spacing.md + 4,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   headerTitle: {
     color: Colors.white,
-    fontSize: 18,
+    fontSize: Typography.title2.fontSize,
     fontWeight: '700',
   },
   closeButton: {
-    padding: 4,
+    padding: Spacing.xs,
   },
   scrollContent: {
-    padding: 20,
-    gap: 16,
+    padding: Spacing.md + 4,
+    gap: Spacing.xs,
   },
   label: {
-    color: Colors.white,
-    fontSize: 14,
+    color: Colors.text,
+    fontSize: Typography.subhead.fontSize,
     fontWeight: '600',
-    marginBottom: -8, // Kéo gần lại input một chút để cân đối
+    marginBottom: Spacing.xs + 2,
   },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    color: Colors.white,
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    color: Colors.text,
+    borderRadius: Radius.md,
     padding: 14,
-    fontSize: 14,
+    fontSize: Typography.body.fontSize,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  inputIconContainer: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  inputIcon: {
-    position: 'absolute',
-    left: 14,
-    zIndex: 1,
-  },
-  inputWithIcon: {
-    paddingLeft: 42,
+    borderColor: Colors.outline,
+    marginBottom: Spacing.md,
   },
   textArea: {
-    height: 100,
-  },
-  imagePickerButton: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    height: 140,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  imagePickerText: {
-    color: Colors.textMuted,
-    fontSize: 14,
-  },
-  scheduleItem: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  scheduleHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  scheduleTitle: {
-    color: Colors.white,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  addScheduleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-  },
-  addScheduleText: {
-    color: Colors.primary,
-    fontSize: 14,
-    fontWeight: '600',
+    height: 90,
   },
   footer: {
     flexDirection: 'row',
-    padding: 20,
-    gap: 12,
+    padding: Spacing.md + 4,
+    gap: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
   },
   cancelButton: {
     flex: 1,
-    padding: 16,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: Spacing.md,
+    borderRadius: Radius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelButtonText: {
-    color: Colors.white,
-    fontSize: 16,
+    color: Colors.textMuted,
+    fontSize: Typography.body.fontSize,
     fontWeight: '600',
   },
   saveButton: {
     flex: 1,
-    padding: 16,
-    borderRadius: 100,
+    padding: Spacing.md,
+    borderRadius: Radius.full,
     backgroundColor: Colors.primary,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
   },
   saveButtonText: {
     color: Colors.background,
-    fontSize: 16,
+    fontSize: Typography.body.fontSize,
     fontWeight: '700',
   },
 });

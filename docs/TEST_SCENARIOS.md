@@ -233,6 +233,157 @@ Tài liệu này tổng hợp toàn bộ các kịch bản kiểm thử (Test Ca
 
 ---
 
+### Kịch Bản 12: Xem Chi Tiết Hành Trình Thật & Hiệu Ứng 60fps Reanimated (SavedTripScreen)
+> **Mục tiêu:** Đảm bảo trang chi tiết hành trình tải dữ liệu thật từ Firestore, hiển thị timeline, ảnh check-in thật, chuyển mượt sang PostDetail và hiệu ứng Parallax Header cuộn 60fps mượt mà trên UI thread.
+
+* **Các bước thực hiện:**
+  1. Từ trang cá nhân (Profile) tab "Saved Routes" hoặc màn hình "AllSavedTrips", bấm vào một thẻ chuyến đi.
+  2. Quan sát quá trình tải:
+     * [x] Bộ khung xương Skeleton hiển thị đúng vị trí (ảnh bìa, tiêu đề, các trạm dừng, lưới ảnh).
+     * [x] Khi có dữ liệu: Ảnh bìa thật, tiêu đề, mô tả, timeline trạm dừng và lưới ảnh thật xuất hiện.
+  3. Thử nghiệm cử chỉ cuộn:
+     * [x] Kéo cuộn xuống dưới: Thanh Navigation bar trên cùng chuyển dần sang nền tối (`rgba(18, 18, 18, 0.95)`) và tiêu đề chuyến đi trượt mượt mà lên thanh điều hướng.
+     * [x] Kéo vuốt đỉnh xuống (Pull-down): Ảnh bìa phóng to đàn hồi mượt mà (Parallax Zoom) mà không gây giật khung hình.
+     * [x] Kéo thả để làm mới (Pull-to-refresh): Dữ liệu chuyến đi và bài viết được đồng bộ mới nhất từ Firestore.
+  4. Bấm vào một ảnh check-in trong lưới:
+     * [x] Mở màn hình `PostDetail` với đầy đủ thông tin bài viết, caption, số lượt thích và bình luận.
+  5. Bấm nút Share:
+     * [x] Hộp thoại chia sẻ của hệ điều hành xuất hiện với tiêu đề và mô tả chuyến đi.
+
+---
+
+### Kịch Bản 13: Danh Sách Hành Trình Đã Lưu với Shopify FlashList (AllSavedTripsScreen)
+> **Mục tiêu:** Đảm bảo danh sách toàn bộ chuyến đi hiển thị mượt mà qua FlashList, hỗ trợ phân trang tải thêm, pull-to-refresh và vi hiệu ứng chạm vật lý 60fps.
+
+* **Các bước thực hiện:**
+  1. Nhấn nút "Xem thêm..." ở tab "Saved Routes" trên trang cá nhân hoặc mở từ menu.
+  2. Màn hình "AllSavedTripsScreen" nạp danh sách chuyến đi từ `useTripStore` (`TripService.getTrips`).
+  3. Thao tác trên danh sách:
+     * [x] Danh sách cuộn cực kỳ mượt mà 60fps nhờ Shopify FlashList.
+     * [x] Nhấn vào thẻ chuyến đi: Có vi hiệu ứng đàn hồi nhẹ (`scale: 0.98` trong 120ms) và chuyển sang `SavedTripScreen`.
+     * [x] Kéo cuộn xuống dưới cùng: Gọi `fetchMoreTrips` tải thêm các chuyến đi cũ hơn (nếu có) kèm spinner tải.
+     * [x] Kéo vuốt xuống từ đỉnh: Kích hoạt `RefreshControl` màu xanh ngọc (`Colors.primary`), tải mới lại danh sách.
+  4. Trường hợp tài khoản chưa có chuyến đi nào:
+     * [x] Hiển thị Empty state đẹp mắt kèm thông điệp khích lệ người dùng khám phá.
+
+---
+
+### Kịch Bản 14: Tạo Mới & Chỉnh Sửa Hành Trình Trực Tiếp Trên Firestore (CreateTripModal)
+> **Mục tiêu:** Đảm bảo việc thêm hoặc sửa thông tin chuyến đi được lưu chính xác vào Firestore, tự động cập nhật store và hiển thị tức thì trên giao diện.
+
+* **Các bước thực hiện:**
+  1. Nhấn nút "Chuyến đi mới" ở màn hình AllSavedTripsScreen hoặc nút "Edit" trên SavedTripScreen.
+  2. Modal `CreateTripModal` trượt lên từ đáy màn hình.
+  3. Điền thông tin:
+     * Tên hành trình (bắt buộc).
+     * Địa điểm / Mô tả.
+     * Thêm các trạm dừng lịch trình (Thời gian + Hoạt động).
+  4. Bấm nút "Lưu chuyến đi" (hoặc "Cập nhật"):
+     * [x] Hiển thị spinner loading trên nút bấm, các trường bị khóa tạm thời.
+     * [x] Dữ liệu được ghi vào Firestore collection `trips` với `userId` của tài khoản hiện tại.
+     * [x] Modal tự động đóng lại.
+     * [x] Danh sách hành trình trong `useTripStore` và màn hình chi tiết được cập nhật ngay lập tức.
+
+### Kịch Bản 15: Chọn Ảnh Bìa Từ Thư Viện, Cơ Chế Lazy Upload & Giao Dịch Rollback An Toàn (CreateTripModal)
+> **Mục tiêu:** Kiểm tra trải nghiệm chọn ảnh bìa từ thư viện máy bằng `expo-media-library`, nén bằng C++ Nitro Image, xem trước tức thì, cơ chế Lazy Upload và cơ chế giao dịch 2 pha (2-Phase Commit & Rollback) khi cập nhật hành trình.
+
+* **Các bước thực hiện:**
+  1. Mở modal `CreateTripModal` (tạo chuyến đi mới hoặc chỉnh sửa).
+  2. Tại mục "Ảnh đại diện chuyến đi", bấm vào khung **"Chọn ảnh bìa từ thư viện"**.
+  3. Modal `CoverImagePickerModal` mở lên:
+     * [x] Hiển thị lưới ảnh thiết bị (3 cột) lấy từ `expo-media-library`.
+     * [x] Chuyển qua tab "Mẫu phong cảnh": Hiển thị các preset danh lam thắng cảnh chất lượng cao.
+  4. Chọn 1 bức ảnh từ thư viện máy:
+     * [x] Hiển thị chỉ báo "Đang tối ưu ảnh bìa..." trong tích tắc nhờ C++ Nitro Modules.
+     * [x] Ảnh hiển thị xem trước ngay lập tức trên banner 16:9 với huy hiệu *"Sẽ tải lên khi lưu"*.
+     * [x] Firebase Storage **CHƯA** nhận bất kỳ file nào (Lazy Upload).
+  5. Nếu bấm nút Hủy / Đóng modal:
+     * [x] Không upload gì lên Storage, không sinh file rác mồ côi.
+  6. Khi bấm nút **"Cập nhật"** (hoặc "Lưu chuyến đi") - **Kiểm tra Giao dịch Thành công:**
+     * [x] Ảnh mới được upload lên Firebase Storage `snapstep/{userId}/...`.
+     * [x] Firestore cập nhật thành công với link ảnh mới.
+     * [x] **Dọn rác an toàn:** Ảnh cũ trên Firebase Storage (`oldCoverImage`) được tự động xóa vĩnh viễn sau khi Firestore thành công.
+  7. **Kiểm tra Cơ chế Rollback (Nếu Firestore lỗi giữa chừng):**
+     * [x] Ảnh cũ trên Storage **vẫn còn nguyên 100%** (vì lệnh xóa ảnh cũ chỉ chạy sau khi Firestore thành công).
+     * [x] Ảnh mới vừa tải lên được tự động xóa ngay lập tức (`ImageService.deleteImage`) để không để lại rác mồ côi trên Storage.
+     * [x] Dữ liệu chuyến đi và ảnh bìa cũ trên Firestore được bảo toàn trọn vẹn.
+
+### Kịch Bản 16: Tự Động Lấy Vị Trí Hiện Tại Bằng GPS Qua Hook useLocation (CreateTripModal)
+> **Mục tiêu:** Đảm bảo trường Địa điểm trong CreateTripModal tái sử dụng hiệu quả hook `useLocation`, lấy tọa độ GPS thực tế và tự động dịch ra địa chỉ cụ thể (`reverseGeocodeAsync`).
+
+* **Các bước thực hiện:**
+  1. Mở modal `CreateTripModal` (tạo chuyến đi mới hoặc chỉnh sửa).
+  2. Bấm vào nút **"Vị trí hiện tại"** bên cạnh tiêu đề Địa điểm:
+     * [x] Nút chuyển sang hiển thị vòng xoay `ActivityIndicator`.
+     * [x] Hook `useLocation` kích hoạt `refetchLocation()`.
+     * [x] Lấy tọa độ GPS thiết bị và dịch ngược thành công ra tên địa danh chi tiết (ví dụ: *"Ba Đình, Hà Nội"*).
+     * [x] Chuỗi địa chỉ tự động được điền vào ô `location`.
+  3. Khi ô địa điểm có nội dung:
+     * [x] Xuất hiện nút xóa nhanh ("x") bên phải ô nhập.
+     * [x] Bấm nút "x" ➔ Ô địa điểm được xóa sạch ngay lập tức để người dùng có thể gõ hoặc lấy lại vị trí khác.
+  4. Nếu thiết bị tắt GPS hoặc từ chối quyền:
+     * [x] Hiển thị thông báo `showAlert` tùy biến dạng `warning`: *"Quyền truy cập vị trí bị từ chối..."*.
+
+
+### Kịch Bản 17: Tìm Kiếm Gợi Ý Địa Điểm Tự Động (Autocomplete) & Chống Rate Limit Bằng Debounce
+> **Mục tiêu:** Đảm bảo khi gõ vào ô địa điểm trong CreateTripModal, hệ thống tự động đưa ra danh sách đề xuất địa chỉ thực tế (Đường, Phường/Xã, Quận/Huyện, Tỉnh/TP) với cơ chế Debounce 400ms và AbortController để ngăn ngừa hoàn toàn rate limit API. Đồng thời khi hệ thống GPS của thiết bị không phân giải được địa chỉ, API fallback tự động dịch ngược tọa độ thành tên đường phố cụ thể.
+
+* **Các bước thực hiện:**
+  1. Mở modal `CreateTripModal`.
+  2. Bấm vào ô input **"Địa điểm"** và gõ từ khóa (ví dụ: *"Hồ Gươm"*, *"Sa Pa"*, *"Nguyễn Huệ"*):
+     * [x] Trong lúc gõ liên tục, API chưa được gọi ngay nhằm tiết kiệm tài nguyên và tránh rate limit.
+     * [x] Sau 400ms dừng gõ (Debounce), xuất hiện spinner loading *"Đang tìm kiếm gợi ý địa điểm..."*.
+     * [x] Trả về danh sách gợi ý địa điểm chuẩn tiếng Việt định dạng `[Đường/Địa danh], [Phường/Xã], [Quận/Huyện], [Tỉnh/TP]`.
+  3. Chạm vào 1 mục gợi ý trong danh sách:
+     * [x] Không bị bàn phím chặn hay nuốt tương tác (`keyboardShouldPersistTaps="handled"`).
+     * [x] Toàn bộ địa chỉ đầy đủ được điền vào ô input.
+     * [x] Danh sách gợi ý tự động ẩn đi.
+  4. Kiểm tra GPS trên thiết bị Android:
+     * [x] Bấm nút "Vị trí hiện tại": Nếu geocoder mặc định của thiết bị trả về "Vị trí không xác định", hệ thống tự động kích hoạt `LocationSearchService.reverseGeocode` để lấy tên đường phố chuẩn xác.
+
+
+### Kịch Bản 18: Bộ Quy Chuẩn Design System Tokens & Component Contract Chuẩn Hóa
+> **Mục tiêu:** Đảm bảo toàn bộ ứng dụng tuân thủ nghiêm ngặt hệ thống Design Tokens (`Colors`, `Spacing`, `Typography`, `Radius`) và các thành phần giao diện tái sử dụng (`ThemedText`, `PressableScale`, `CustomButton`) hoạt động trơn tru với hiệu ứng chạm 60fps trên UI thread.
+
+* **Các bước thực hiện:**
+  1. Kiểm tra bộ token trong `src/constants/`:
+     * [x] `Spacing.ts`: Đầy đủ thang đo 4-point grid (`xs: 4`, `sm: 8`, `md: 16`, `lg: 24`, `xl: 32`, `xxl: 48`).
+     * [x] `Radius.ts`: Đầy đủ thang bo góc (`sm: 8`, `md: 12`, `lg: 16`, `full: 9999`).
+     * [x] `Typography.ts`: Đầy đủ Type Ramp chuẩn Apple HIG (`largeTitle`, `title`, `headline`, `body`, `caption`).
+     * [x] `src/constants/index.ts`: Export tập trung, sạch sẽ.
+  2. Kiểm tra Component dùng chung:
+     * [x] `ThemedText`: Tự động nhận diện variant và áp dụng đúng kích cỡ/độ đậm font.
+     * [x] `PressableScale`: Hoạt động mượt mà 60fps khi nhấn nút quay lại hoặc tương tác trên `AllSavedTripsScreen` và `SavedTripScreen`, loại bỏ hoàn toàn code trùng lặp.
+     * [x] `CustomButton`: Tuân thủ chuẩn màu SnapStep Mint (`#70C2B4`), hỗ trợ đầy đủ `variant`, `size`, `loading` và `pressed` states.
+
+
+### Kịch Bản 19: Phân Rã Kiến Trúc CreateTripModal & Tuân Thủ Anti-Monolith Gate
+> **Mục tiêu:** Đảm bảo CreateTripModal được giải phẫu thành công từ 954 dòng xuống dưới 420 dòng, phân chia các khối độc lập (LocationSearchInput, TripScheduleSection, TripCoverPickerSection) mà vẫn giữ nguyên vẹn 100% chức năng tạo/sửa hành trình du lịch.
+
+* **Các bước thực hiện:**
+  1. Mở modal `CreateTripModal`:
+     * [x] Cụm ảnh bìa `TripCoverPickerSection` hiển thị mượt mà: chọn từ máy hoặc mẫu phong cảnh, hiện badge "Sẽ tải lên khi lưu".
+     * [x] Cụm địa điểm `LocationSearchInput` hoạt động chuẩn xác: tự động gợi ý địa chỉ khi gõ (debounce 400ms) và nút "Vị trí hiện tại" quét GPS.
+     * [x] Cụm lịch trình `TripScheduleSection`: thêm, sửa, xóa trạm dừng mượt mà.
+  2. Lưu chuyến đi mới & Cập nhật chuyến đi cũ:
+     * [x] Dữ liệu chuyến đi và lịch trình lưu chuẩn xác vào Firestore (`TripService.createTrip` / `updateTrip`).
+     * [x] Danh sách `useTripStore` tự động làm mới tức thì.
+     * [x] Đạt chuẩn Anti-Monolith Gate: file gọn gàng, chia nhỏ trách nhiệm theo chuẩn Clean Architecture.
+
+### Kịch Bản 20: Đảm Bảo Khung SafeAreaProvider & Loại Bỏ Triệt Để Offline Banner
+> **Mục tiêu:** Đảm bảo App.tsx được bao bọc chuẩn xác bởi SafeAreaProvider để các màn hình dùng `useSafeAreaInsets()` hoạt động ổn định không bị văng, đồng thời loại bỏ hoàn toàn tính năng thông báo ngoại tuyến (OfflineBanner) theo đúng yêu cầu người dùng mà không để lại code rác hay lỗi phụ thuộc.
+
+* **Các bước thực hiện:**
+  1. Khởi chạy ứng dụng:
+     * [x] App khởi động và bundle mượt mà, không gặp lỗi `No safe area value available`.
+     * [x] Mọi màn hình dùng `useSafeAreaInsets` (`SavedTripScreen`, `AllSavedTripsScreen`) lấy đúng insets padding của thiết bị.
+  2. Kiểm tra việc loại bỏ OfflineBanner:
+     * [x] Không còn banner cảnh báo mạng hiển thị trên đầu ứng dụng.
+     * [x] Các file liên quan `OfflineBanner.tsx` và `useNetworkStatus.ts` đã được dọn sạch hoàn toàn khỏi cây thư mục.
+     * [x] `npx tsc --noEmit` đạt Exit code 0, không có import mồ côi.
+
+---
+
 ## 🏁 3. Bảng Tóm Tắt Checklist Trước Khi Release (Quick Regression Checklist)
 
 | STT | Hạng mục kiểm tra | Trạng thái | Ghi chú |
@@ -251,3 +402,15 @@ Tài liệu này tổng hợp toàn bộ các kịch bản kiểm thử (Test Ca
 | 12 | Hiệu năng FlashList: Cuộn mượt mà 60fps, ước lượng size 75 | ⬜ Pass | `@shopify/flash-list` |
 | 13 | Phân trang tải tin cũ: Hiện spinner xanh ngọc, không giật vị trí | ⬜ Pass | `loadMoreMessages` |
 | 14 | Bảo mật RTDB Rules: Chặn triệt để UID lạ & chống mạo danh senderId | ⬜ Pass | `database.rules.json` |
+| 15 | SavedTripScreen dữ liệu thật: Tải Firestore, timeline & ảnh check-in | ⬜ Pass | `TripService.getTripById` |
+| 16 | Hiệu ứng expo-animation: Parallax Zoom ảnh bìa & Collapsing Header | ⬜ Pass | 100% UI thread Reanimated 4 |
+| 17 | AllSavedTripsScreen FlashList: Tải thật từ useTripStore & phân trang | ⬜ Pass | Thay thế FlatList |
+| 18 | Tạo & Sửa Chuyến đi: Lưu Firestore thật qua CreateTripModal | ⬜ Pass | Đồng bộ tức thì useTripStore |
+| 19 | Chọn ảnh bìa từ thư viện máy: Lazy Upload & nén Nitro Image C++ | ⬜ Pass | `expo-media-library` & `ImageUtils` |
+| 20 | Tự động lấy vị trí hiện tại GPS & dịch địa chỉ cụ thể | ⬜ Pass | `useLocation` hook tái sử dụng |
+| 21 | Gợi ý địa điểm thời gian thực & Debounce 400ms chống rate limit | ⬜ Pass | `LocationSearchService` độc lập |
+| 22 | Bộ Design Tokens chuẩn hóa & Component Contract (PressableScale, ThemedText, CustomButton) | ⬜ Pass | `expo-design-system` chuẩn |
+| 23 | Phân rã kiến trúc CreateTripModal (giảm hơn 530 dòng code) | ⬜ Pass | Anti-Monolith Gate đạt chuẩn |
+| 24 | Đảm bảo SafeAreaProvider toàn cục & gỡ sạch Offline Banner | ⬜ Pass | Không còn lỗi runtime safe area |
+
+
