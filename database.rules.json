@@ -2,8 +2,12 @@
   "rules": {
     "messages": {
       "$chatId": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read": "auth != null && ($chatId.beginsWith(auth.uid + '_') || $chatId.endsWith('_' + auth.uid))",
+        ".write": "auth != null && ($chatId.beginsWith(auth.uid + '_') || $chatId.endsWith('_' + auth.uid))",
+        ".indexOn": ["createdAt"],
+        "$messageId": {
+          ".validate": "newData.hasChildren(['senderId', 'receiverId', 'ciphertext', 'iv', 'createdAt']) && newData.child('senderId').val() === auth.uid"
+        }
       }
     }
   }

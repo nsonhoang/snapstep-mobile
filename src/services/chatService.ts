@@ -3,9 +3,11 @@ import {
   ref,
   push,
   set,
+  get,
   query,
   orderByChild,
   limitToLast,
+  endAt,
   onValue,
   serverTimestamp as rtdbServerTimestamp,
   DataSnapshot,
@@ -101,6 +103,7 @@ export interface ChatMessageUI {
   isMe: boolean; // true nếu người gửi là currentUser
   status?: MessageStatus; // Trạng thái gửi tin nhắn cục bộ: 'sending' | 'sent' | 'error'
   replyPost?: ChatReplyPost | null;
+  createdAt?: number; // Timestamp mili-giây từ Server phục vụ phân trang
 }
 
 export const ChatService = {
@@ -245,7 +248,7 @@ export const ChatService = {
     const messagesQuery = query(
       messagesRef,
       orderByChild("createdAt"),
-      limitToLast(50),
+      limitToLast(25),
     );
 
     const unsubscribe = onValue(messagesQuery, (snapshot: DataSnapshot) => {
@@ -268,6 +271,7 @@ export const ChatService = {
             time: `${hours}:${minutes}`,
             isMe: val.senderId === currentUserId,
             replyPost: val.replyPost || null,
+            createdAt: val.createdAt || msgDate.getTime(),
           });
 
           return undefined; // Iterator callback requirement
@@ -279,6 +283,74 @@ export const ChatService = {
     });
 
     return unsubscribe;
+  },
+
+  /**
+   * Tải thêm các tin nhắn cũ hơn (Phân trang khi người dùng cuộn lên trên đỉnh)
+   *
+   * @param chatId ID phòng chat
+   * @param currentUserId UID người dùng hiện tại
+   * @param otherUserId UID người bạn chat cùng
+   * @param oldestCreatedAt Thời gian tạo của tin nhắn cũ nhất hiện tại
+   * @param oldestMessageId ID của tin nhắn cũ nhất hiện tại
+   * @param pageSize Số lượng tin nhắn muốn tải thêm (mặc định 20)
+   * @returns Danh sách tin nhắn cũ đã giải mã (đã đảo ngược để khớp thứ tự inverted)
+   */
+  async loadMoreMessages(
+    chatId: string,
+    currentUserId: string,
+    otherUserId: string,
+    oldestCreatedAt: number,
+    oldestMessageId?: string,
+    pageSize: number = 20,
+  ): Promise<ChatMessageUI[]> {
+    if (!chatId || !oldestCreatedAt) return [];
+
+    const roomKey = deriveChatRoomKey(currentUserId, otherUserId);
+    const rtdb = getDatabase();
+    const messagesRef = ref(rtdb, `messages/${chatId}`);
+
+    // Dùng endAt với (createdAt, oldestMessageId) và lấy (pageSize + 1) để trừ đi chính tin nhắn mốc
+    const messagesQuery = query(
+      messagesRef,
+      orderByChild("createdAt"),
+      endAt(oldestCreatedAt, oldestMessageId),
+      limitToLast(pageSize + 1),
+    );
+
+    const snapshot = await get(messagesQuery);
+    const messagesList: ChatMessageUI[] = [];
+
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnap: DataSnapshot) => {
+        // Bỏ qua chính tin nhắn mốc oldestMessageId để không bị lặp
+        if (childSnap.key === oldestMessageId) {
+          return undefined;
+        }
+
+        const val = childSnap.val() as ChatMessageRTDB;
+        const plainText = decryptMessage(val.ciphertext, val.iv, roomKey);
+
+        const msgDate = new Date(val.createdAt || Date.now());
+        const hours = msgDate.getHours().toString().padStart(2, "0");
+        const minutes = msgDate.getMinutes().toString().padStart(2, "0");
+
+        messagesList.push({
+          id: childSnap.key || `${Date.now()}_${Math.random()}`,
+          senderId: val.senderId,
+          text: plainText,
+          time: `${hours}:${minutes}`,
+          isMe: val.senderId === currentUserId,
+          replyPost: val.replyPost || null,
+          createdAt: val.createdAt || msgDate.getTime(),
+        });
+
+        return undefined;
+      });
+    }
+
+    // Đảo ngược mảng vì FlatList hiển thị inverted={true} (mới hơn ở trước)
+    return messagesList.reverse();
   },
 
   /**

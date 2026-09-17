@@ -11,12 +11,10 @@ import {
   Text,
   Pressable,
   TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  FlatList,
   Alert,
-  Keyboard,
+  ActivityIndicator,
 } from "react-native";
+import { FlashList, FlashListRef } from "@shopify/flash-list";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -53,6 +51,11 @@ export const ChatScreen = ({
   const failedStorageKey = `@failed_msg_${currentUserId}_${chatId}`;
 
   const [messages, setMessages] = useState<ChatMessageUI[]>([]);
+  const [historicalMessages, setHistoricalMessages] = useState<
+    ChatMessageUI[]
+  >([]);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const [hasMore, setHasMore] = useState<boolean>(true);
   const [sendingMessages, setSendingMessages] = useState<ChatMessageUI[]>([]);
   const [failedMessages, setFailedMessages] = useState<ChatMessageUI[]>([]);
   const [inputText, setInputText] = useState<string>("");
@@ -61,7 +64,7 @@ export const ChatScreen = ({
   >(undefined);
   const [isSending, setIsSending] = useState<boolean>(false);
 
-  const listRef = useRef<FlatList<ChatMessageUI>>(null);
+  const listRef = useRef<FlashListRef<ChatMessageUI>>(null);
   const hasSentInitialRef = useRef<boolean>(false);
   // lấy chiều cao bàn phím
   const keyboardHeight = useKeyboardHeight();
@@ -99,19 +102,26 @@ export const ChatScreen = ({
     };
   });
 
-  // Hàm lưu trữ danh sách tin nhắn lỗi vào AsyncStorage
+  // Hàm lưu trữ danh sách tin nhắn lỗi vào AsyncStorage và cập nhật state tập trung
   const saveFailedMessages = useCallback(
-    async (list: ChatMessageUI[]): Promise<void> => {
-      try {
-        setFailedMessages(list);
-        if (list.length === 0) {
-          await AsyncStorage.removeItem(failedStorageKey);
+    (
+      updater: ChatMessageUI[] | ((prev: ChatMessageUI[]) => ChatMessageUI[]),
+    ): void => {
+      setFailedMessages((prev) => {
+        const nextList =
+          typeof updater === "function" ? updater(prev) : updater;
+        if (nextList.length === 0) {
+          AsyncStorage.removeItem(failedStorageKey).catch((e) =>
+            console.error("Lỗi khi xóa AsyncStorage:", e),
+          );
         } else {
-          await AsyncStorage.setItem(failedStorageKey, JSON.stringify(list));
+          AsyncStorage.setItem(
+            failedStorageKey,
+            JSON.stringify(nextList),
+          ).catch((e) => console.error("Lỗi khi lưu AsyncStorage:", e));
         }
-      } catch (err) {
-        console.error("Lỗi khi lưu tin nhắn lỗi vào AsyncStorage:", err);
-      }
+        return nextList;
+      });
     },
     [failedStorageKey],
   );
@@ -182,7 +192,6 @@ export const ChatScreen = ({
     const now = new Date();
     const hours = now.getHours().toString().padStart(2, "0");
     const minutes = now.getMinutes().toString().padStart(2, "0");
-    const chatId = getChatRoomId(currentUserId, recipientId);
     const tempId = ChatService.generateMessageId(chatId);
     const tempItem: ChatMessageUI = {
       id: tempId,
@@ -212,13 +221,7 @@ export const ChatScreen = ({
         id: `failed_${Date.now()}`,
         status: "error",
       };
-      setFailedMessages((prev) => {
-        const updated = [failedItem, ...prev];
-        AsyncStorage.setItem(failedStorageKey, JSON.stringify(updated)).catch(
-          (e) => console.error("Lỗi lưu AsyncStorage:", e),
-        );
-        return updated;
-      });
+      saveFailedMessages((prev) => [failedItem, ...prev]);
     } finally {
       // Bỏ tin nhắn tạm trong danh sách sending
       setSendingMessages((prev) => prev.filter((m) => m.id !== tempId));
@@ -258,13 +261,11 @@ export const ChatScreen = ({
             text: "Thử lại",
             onPress: async () => {
               // Xóa khỏi danh sách lỗi trước
-              const remaining = failedMessages.filter(
-                (m) => m.id !== failedMsg.id,
+              saveFailedMessages((prev) =>
+                prev.filter((m) => m.id !== failedMsg.id),
               );
-              await saveFailedMessages(remaining);
 
               // Tạo tin nhắn tạm gửi lại với ID mới từ RTDB
-              const chatId = getChatRoomId(currentUserId, recipientId);
               const tempId = ChatService.generateMessageId(chatId);
               const retryItem: ChatMessageUI = {
                 ...failedMsg,
@@ -288,14 +289,7 @@ export const ChatScreen = ({
                   ...failedMsg,
                   status: "error",
                 };
-                setFailedMessages((prev) => {
-                  const updated = [reFailedItem, ...prev];
-                  AsyncStorage.setItem(
-                    failedStorageKey,
-                    JSON.stringify(updated),
-                  ).catch((e) => console.error("Lỗi lưu AsyncStorage:", e));
-                  return updated;
-                });
+                saveFailedMessages((prev) => [reFailedItem, ...prev]);
               } finally {
                 setSendingMessages((prev) =>
                   prev.filter((m) => m.id !== tempId),
@@ -315,7 +309,7 @@ export const ChatScreen = ({
     ],
   );
 
-  // 6. Hợp nhất tin nhắn đang gửi, tin nhắn lỗi và tin nhắn đã tải từ RTDB
+  // 6. Hợp nhất tin nhắn đang gửi, tin nhắn lỗi, tin nhắn realtime và tin nhắn cũ (phân trang)
   // Vì FlatList inverted={true}, các phần tử ở đầu mảng sẽ hiển thị ở dưới đáy giao diện (mới nhất)
   const displayMessages = useMemo(() => {
     // Map các ID đang gửi để tra cứu nhanh
@@ -339,8 +333,13 @@ export const ChatScreen = ({
       (s) => !messages.some((m) => m.id === s.id),
     );
 
-    return [...pendingSending, ...failedMessages, ...mergedMessages];
-  }, [sendingMessages, failedMessages, messages]);
+    return [
+      ...pendingSending,
+      ...failedMessages,
+      ...mergedMessages,
+      ...historicalMessages,
+    ];
+  }, [sendingMessages, failedMessages, messages, historicalMessages]);
 
   const handleGoBack = (): void => {
     navigation.goBack();
@@ -379,6 +378,62 @@ export const ChatScreen = ({
     },
     [handlePressError, handlePressReplyPost],
   );
+
+  // 7. Xử lý tải thêm tin nhắn cũ khi người dùng cuộn lên trên đỉnh (onEndReached của inverted FlatList)
+  const handleLoadMore = useCallback(async (): Promise<void> => {
+    if (isLoadingMore || !hasMore || !currentUserId || !recipientId) return;
+
+    // Lấy nhanh tin cũ nhất hiện có: ưu tiên cuối mảng lịch sử, nếu chưa có thì lấy cuối mảng realtime
+    const oldestMsg =
+      historicalMessages[historicalMessages.length - 1] ??
+      messages[messages.length - 1];
+    if (!oldestMsg?.createdAt) return;
+
+    setIsLoadingMore(true);
+    try {
+      const olderMessages = await ChatService.loadMoreMessages(
+        chatId,
+        currentUserId,
+        recipientId,
+        oldestMsg.createdAt,
+        oldestMsg.id,
+        20,
+      );
+
+      // Nếu số tin trả về ít hơn pageSize (20), nghĩa là đã hết lịch sử tin nhắn
+      if (olderMessages.length < 20) {
+        setHasMore(false);
+      }
+      if (olderMessages.length > 0) {
+        setHistoricalMessages((prev) => [...prev, ...olderMessages]);
+      }
+    } catch (err) {
+      console.error("Lỗi khi tải thêm tin nhắn cũ:", err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [
+    isLoadingMore,
+    hasMore,
+    messages,
+    historicalMessages,
+    currentUserId,
+    recipientId,
+    chatId,
+  ]);
+
+  // Vòng xoay tải trang ở trên đỉnh của khung chat (ListFooterComponent của inverted FlatList)
+  const renderListFooter = useCallback((): React.JSX.Element | null => {
+    if (!isLoadingMore) return null;
+    return (
+      <View style={styles.loadingMoreContainer}>
+        <ActivityIndicator size="small" color={Colors.primary} />
+      </View>
+    );
+  }, [isLoadingMore]);
+
+  // Điều kiện kích hoạt nút gửi (có nhập chữ hoặc có ảnh Snap phản hồi)
+  const canSend = Boolean(inputText.trim() || activeReplyPost);
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
@@ -425,21 +480,20 @@ export const ChatScreen = ({
         </Pressable>
       </View>
 
-      {/* 2. Danh sách tin nhắn Realtime (Mock) */}
-      <Animated.View
-        style={[styles.chatArea, keyboardAdaptiveStyle]}
-        // behavior={Platform.OS === "ios" ? "padding" : undefined}
-        // keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
-      >
+      {/* 2. Danh sách tin nhắn Realtime */}
+      <Animated.View style={[styles.chatArea, keyboardAdaptiveStyle]}>
         <View style={styles.messageListWrapper}>
-          <FlatList
+          <FlashList
             ref={listRef}
             data={displayMessages}
             keyExtractor={(item) => item.id}
             renderItem={renderMessageItem}
-            inverted={true} // Cuộn từ dưới lên chuẩn giao diện chat
+            inverted={true}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.2}
+            ListFooterComponent={renderListFooter}
           />
         </View>
 
@@ -463,7 +517,7 @@ export const ChatScreen = ({
         )}
 
         {/* 4. Thanh gõ tin nhắn (Input Bar) */}
-        <View style={[styles.inputContainer]}>
+        <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
             placeholder={`Nhắn tin cho ${recipientName}...`}
@@ -478,23 +532,18 @@ export const ChatScreen = ({
             onPress={handleSendMessage}
             style={({ pressed }) => [
               styles.sendBtn,
-              (inputText.trim() || activeReplyPost) && styles.sendBtnActive,
-              pressed && { opacity: 0.7 },
+              canSend && styles.sendBtnActive,
+              pressed && styles.pressed,
             ]}
-            disabled={!inputText.trim() && !activeReplyPost}
+            disabled={!canSend}
           >
             <Ionicons
               name="send"
               size={18}
-              color={
-                inputText.trim() || activeReplyPost
-                  ? Colors.black
-                  : Colors.textMuted
-              }
+              color={canSend ? Colors.black : Colors.textMuted}
             />
           </Pressable>
         </View>
-        {/* </KeyboardAvoidingView> */}
       </Animated.View>
     </SafeAreaView>
   );
@@ -567,12 +616,6 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 16,
     fontWeight: "700",
-  },
-  userStatusText: {
-    color: "#4ADE80",
-    fontSize: 11,
-    fontWeight: "500",
-    marginTop: 2,
   },
   moreBtn: {
     padding: 4,
@@ -648,5 +691,11 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  // Vùng hiển thị vòng xoay đang tải thêm tin nhắn cũ
+  loadingMoreContainer: {
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

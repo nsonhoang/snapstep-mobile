@@ -201,6 +201,38 @@ Tài liệu này tổng hợp toàn bộ các kịch bản kiểm thử (Test Ca
 
 ---
 
+### Kịch Bản 10: Phân Trang & Cuộn Tải Tin Nhắn Cũ (FlashList Pagination & Infinite Scroll)
+> **Mục tiêu:** Đảm bảo khi cuộn ngược lên đỉnh trong phòng chat, ứng dụng gọi tải thêm tin nhắn cũ từ RTDB, giải mã an toàn, hiển thị vòng xoay và nạp mượt mà không nhảy giao diện.
+
+* **Các bước thực hiện:**
+  1. Mở một phòng chat đã có sẵn lịch sử trò chuyện (> 25 tin nhắn).
+  2. Màn hình khởi tạo chỉ nạp 25 tin nhắn gần nhất để tối ưu tốc độ (< 50ms).
+  3. Dùng tay vuốt màn hình cuộn ngược lên trên đỉnh (phía tin nhắn cũ nhất).
+  4. Quan sát giao diện khi chạm đỉnh:
+     * [x] Vòng xoay nhỏ `<ActivityIndicator>` màu xanh ngọc (`Colors.primary`) xuất hiện ở đỉnh danh sách chat.
+     * [x] Hàm `loadMoreMessages()` được kích hoạt, lấy thêm 20 tin nhắn cũ tiếp theo dựa trên mốc `oldestCreatedAt` và `oldestMessageId`.
+     * [x] Tin nhắn cũ được giải mã E2EE thành công và nạp nối tiếp vào danh sách.
+     * [x] Không xảy ra hiện tượng nhảy giật vị trí cuộn hay trùng lặp tin nhắn.
+  5. Tiếp tục cuộn lên đến khi hết toàn bộ tin nhắn trong phòng chat:
+     * [x] `hasMore` chuyển sang `false`, spinner biến mất và không gửi thêm bất kỳ truy vấn dư thừa nào lên Firebase.
+
+---
+
+### Kịch Bản 11: Kiểm Thử Phân Quyền Bảo Mật Firebase Realtime Database Rules
+> **Mục tiêu:** Đảm bảo chỉ 2 người dùng có UID nằm trong $chatId mới có quyền đọc và gửi tin vào phòng chat.
+
+* **Các bước thực hiện:**
+  1. Người dùng A (`uid_A`) và Người dùng B (`uid_B`) trò chuyện trong phòng `uid_A_uid_B`.
+  2. Dùng tài khoản Người dùng C (`uid_C`):
+     * Cố tình tạo kết nối WebSocket đọc đường dẫn `messages/uid_A_uid_B`.
+     * Cố tình gửi tin nhắn vào `messages/uid_A_uid_B`.
+* **Kết quả mong đợi:**
+  * [x] Firebase Server từ chối ngay lập tức với lỗi `PERMISSION_DENIED`.
+  * [x] Người dùng C không thể đọc trộm hay ghi đè bất kỳ dữ liệu nào vào phòng chat của A và B.
+  * [x] Người dùng A thử gửi tin nhắn mạo danh với `senderId: "uid_B"`: Firebase từ chối vì không thỏa mãn `.validate: "newData.child('senderId').val() === auth.uid"`.
+
+---
+
 ## 🏁 3. Bảng Tóm Tắt Checklist Trước Khi Release (Quick Regression Checklist)
 
 | STT | Hạng mục kiểm tra | Trạng thái | Ghi chú |
@@ -216,3 +248,6 @@ Tài liệu này tổng hợp toàn bộ các kịch bản kiểm thử (Test Ca
 | 9 | Trạng thái tin nhắn: Hiện 🕒 khi gửi, chuyển ⚠️ khi lỗi | ⬜ Pass | Optimistic UI mượt mà |
 | 10 | Bền vững tin nhắn lỗi: Đóng app mở lại vẫn nạp từ AsyncStorage | ⬜ Pass | Key `@failed_msg_*` |
 | 11 | Tương tác tin lỗi (Thử lại / Xóa) & Xóa sạch khi Đăng xuất | ⬜ Pass | Bảo mật tuyệt đối |
+| 12 | Hiệu năng FlashList: Cuộn mượt mà 60fps, ước lượng size 75 | ⬜ Pass | `@shopify/flash-list` |
+| 13 | Phân trang tải tin cũ: Hiện spinner xanh ngọc, không giật vị trí | ⬜ Pass | `loadMoreMessages` |
+| 14 | Bảo mật RTDB Rules: Chặn triệt để UID lạ & chống mạo danh senderId | ⬜ Pass | `database.rules.json` |

@@ -38,6 +38,7 @@ All logic must strictly reside within the `src/` directory. You must place files
 - **Colors Constant First Policy:** ALWAYS check `src/constants/Colors.ts` for common color variables (`Colors.primary`, `Colors.background`, `Colors.black`, `Colors.white`, `Colors.surface`, `Colors.text`, `Colors.textMuted`, etc.) BEFORE hardcoding any hex color code ("mã màu").
 - **Screen Dimensions Layout Policy:** ALWAYS import and use screen dimensions (width, height) from `src/constants/Value.ts` (e.g., `Value.widthScreen`, `Value.heightScreen`) instead of calling `Dimensions.get('window')` or `useWindowDimensions` inline within stylesheets/components unless dynamic rotation/resize handling is explicitly required.
 - **Animation Library Rule:** Use `react-native-reanimated` library for smooth 60fps animations.
+- **FlashList Over FlatList Policy:** ALWAYS prefer using Shopify's FlashList ('@shopify/flash-list') over React Native's standard FlatList for all long/scrollable lists to ensure maximum view recycling and smooth 60fps performance.
 - **Vietnamese Comments Policy:** ALWAYS write code comments in Vietnamese (`tiếng Việt`) to ensure clarity and easy understanding for the local development team.
 - For major structural differences or platform-exclusive native components (e.g., `ActionSheetIOS` vs `ToastAndroid`), separate the implementations using file extensions: `ComponentName.ios.tsx` and `ComponentName.android.tsx`.
 
