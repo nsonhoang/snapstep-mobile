@@ -41,7 +41,7 @@ export const ProfileTabs = ({
     }
 
     setIsLoadingSnaps(true);
-    const unsubscribe = PostService.subscribeToPosts(12, targetUid, (posts) => {
+    const unsubscribe = PostService.subscribeToPosts(5, targetUid, (posts) => {
       setSnaps(posts);
       setIsLoadingSnaps(false);
       onSnapsCountChange?.(posts.length);
@@ -136,11 +136,11 @@ export const ProfileTabs = ({
                 />
               </Pressable>
             ))}
-            {snaps.length >= 12 && (
+            {snaps.length >= 5 && (
               <View style={styles.snapImageContainer}>
                 <Pressable
                   onPress={() =>
-                    navigation.navigate('MainTabs', { screen: 'Explore' })
+                    navigation.navigate('MainTabs', { screen: 'Explore', params: { filter: userId } })
                   }
                   style={styles.moreSnapsBtn}
                 >

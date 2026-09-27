@@ -28,9 +28,12 @@ import { Trip } from "../services/tripService";
 
 export const ExploreScreen = ({
   navigation,
+  route,
 }: ExploreScreenProps): React.JSX.Element => {
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedChipId, setSelectedChipId] = useState<string>("all");
+  const [selectedChipId, setSelectedChipId] = useState<string>(
+    (route?.params as { filter?: string })?.filter || "all",
+  );
   const [viewMode, setViewMode] = useState<"grid" | "feed">("grid");
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const db = getFirestore();
@@ -119,6 +122,13 @@ export const ExploreScreen = ({
       if (unsubscribe) unsubscribe();
     };
   }, [allowedAuthorIds, subscribePosts]);
+
+  // có params thì set selectedChipId theo params
+  useEffect(() => {
+    if (route?.params?.filter) {
+      setSelectedChipId(route.params.filter);
+    }
+  }, [route?.params?.filter]);  
 
   // Tạo các chip lọc động từ danh sách bạn bè thật (ngăn chặn hoàn toàn trùng lặp key)
   const filterChips: FilterChipItem[] = useMemo(() => {

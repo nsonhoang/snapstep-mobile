@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,8 @@ import { RootStackParamList } from '../navigation/types';
 import { MAP_DARK_STYLE } from './MapScreen';
 import { GroupLeaderboard } from '../components/GroupLeaderboard';
 import vietnamGeoData from '../../assets/vn_provinces_simplified.json';
+import { useAuthStore } from '../stores/authStore';
+import { ProvinceInfo, User, UserService } from '../services/userService';
 
 type ConquestScreenProps = NativeStackScreenProps<RootStackParamList, 'Conquest'>;
 
@@ -44,20 +46,38 @@ const LEADERBOARD_DATA = [
 ];
 
 export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.Element => {
+  const [countPhoto, setCountPhoto] = useState(0);
   // Trạng thái map đã render xong hay chưa (dùng để hiện loading overlay)
+
+  //lay du lieu user luu trem global state
+  const { user } = useAuthStore();
   const [mapReady, setMapReady] = useState(false);
 
-  const [ConqueredProvinces, setConqueredProvinces] = useState([
-    "Hồ Chí Minh",
-    "Hà Nội",
-    "Đà Nẵng",
-    "Khánh Hòa"
-  ]);
+  const [conqueredProvinces, setConqueredProvinces] = useState<Record<string, ProvinceInfo>>({});
 
+  useEffect( () => {
+    const fetchConquestData = async () => {
+      if (!user?.uid) return;
+      
+      try {
+        const userProfile = await UserService.getUserProfile(user.uid);
+        setConqueredProvinces(userProfile?.conqueredProvinces || {});
+        setCountPhoto(userProfile?.stats?.totalPhotosCount ?? 0);
+      } catch (error) {
+        console.error('Lỗi khi tải dữ liệu conquest:', error);
+      }
+    }
+    fetchConquestData();
+  }, [user?.uid]);
+
+
+  // lay du lieu conquest
   // Hàm xử lý khi nhấn nút quay lại
   const handleGoBack = () => {
     navigation.goBack();
   };
+
+
 
   // Tính toán dữ liệu polygon bằng useMemo — chỉ chạy lại khi ConqueredProvinces thay đổi
   // Tọa độ đã được pre-compute sẵn trong JSON → chỉ cần map key ngắn sang key đầy đủ
@@ -66,8 +86,8 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
 
     return features.flatMap((feature, featureIndex) => {
       // Kiểm tra tỉnh đã chinh phục chưa
-      const isConquered = ConqueredProvinces.some(prov =>
-        feature.n.includes(prov) || feature.e.includes(prov)
+      const isConquered = Object.keys(conqueredProvinces).some(key =>
+        feature.n.includes(key) || feature.e.includes(key)
       );
 
       const fillColor = isConquered
@@ -86,12 +106,12 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
         strokeColor,
       }));
     }) as ProvincePolygonData[];
-  }, [ConqueredProvinces]);
+  }, [conqueredProvinces]);
   const navigateToExploreScreenWithMe = () => {
     navigation.navigate('MainTabs', {
       screen: 'Explore',
       params: {
-        filter: 'me',
+        filter: user?.uid,
       },
     });
   };
@@ -164,7 +184,7 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
             <View style={styles.statsTextContainer}>
               <Text style={styles.statsLabel}>Provinces Visited</Text>
               <Text style={styles.statsValue}>
-                {ConqueredProvinces.length} <Text style={styles.statsValueTotal}>/ 63</Text>
+                {Object.keys(conqueredProvinces).length} <Text style={styles.statsValueTotal}>/ 63</Text>
               </Text>
             </View>
             <View style={styles.statsIconBox}>
@@ -193,7 +213,7 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
           >
             <View style={styles.statsTextContainer}>
               <Text style={styles.statsLabel}>Total Photos</Text>
-              <Text style={styles.statsValue}>248</Text>
+              <Text style={styles.statsValue}>{countPhoto}</Text>
             </View>
             <View style={styles.statsIconBox}>
               <Text style={styles.statsEmoji}>📸</Text>
@@ -213,7 +233,7 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
         </View>
 
         {/* Bảng xếp hạng nhóm */}
-        <GroupLeaderboard players={LEADERBOARD_DATA} />
+        {/*    */}
       </ScrollView>
 
       {/* Loading overlay phủ toàn màn hình — ẩn khi map đã sẵn sàng */}
@@ -262,7 +282,7 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     width: '100%',
-    height: 280,
+    height: Value.heightScreen * 0.6,
     borderRadius: 24,
     overflow: 'hidden',
     marginVertical: 16,

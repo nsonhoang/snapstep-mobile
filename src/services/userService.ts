@@ -272,4 +272,23 @@ export const UserService = {
       );
     }
   },
+   getConqueredProvinces: async (uid: string): Promise<Record<string, ProvinceInfo>>=> {
+    if (!uid) return {};
+    try {
+      const db = getFirestore();
+      const userRef = doc(db, "users", uid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const conqueredProvinces = userSnap.data()?.conqueredProvinces;
+        return (conqueredProvinces )
+      }
+      return {};
+    } catch (error) {
+      console.error(
+        `Lỗi khi lấy conqueredProvinces cho user ${uid}:`,
+        error,
+      );
+      return {};
+    }
+  },
 };
