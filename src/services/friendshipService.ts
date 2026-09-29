@@ -8,6 +8,7 @@ import {
   serverTimestamp,
   writeBatch,
 } from "@react-native-firebase/firestore";
+import { CreateNotificationParams, NotificationService } from "./notificationService";
 
 // Các trạng thái của mối quan hệ trong Subcollection: friendships/{userId}/friends/{friendId}
 export type FriendshipStatus =
@@ -62,6 +63,16 @@ export const FriendshipService = {
       createdAt: now,
       updatedAt: now,
     });
+    // tạo thông báo cho nguời nhận lời mời 
+    const notification:CreateNotificationParams={
+      type:"friend_request",
+      body:'',
+      recipientId:targetUid,
+      senderId:'Bạn nhận đuợc lời mời kết bạn mới',
+      title:'Có 1 nguời muốn kết bạn với bạn'
+    }
+
+    await NotificationService.createNotification( notification) 
 
     await batch.commit();
   },
@@ -91,6 +102,15 @@ export const FriendshipService = {
       status: "accepted",
       updatedAt: now,
     });
+
+    // gửi thông báo khi chấp nhận lời mời 
+    const notification:CreateNotificationParams={
+      type:"friend_accepted",
+      body:'',
+      recipientId:targetUid,
+      senderId:'Bạn mới ',
+      title:'Yêu cần kết bạn của bạn đã được xác nhận'
+    }
 
     await batch.commit();
   },

@@ -110,3 +110,4 @@ export type ProfileScreenProps = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, "Profile">,
   NativeStackScreenProps<RootStackParamList>
 >;
+export type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;

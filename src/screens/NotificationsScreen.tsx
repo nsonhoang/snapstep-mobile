@@ -1,77 +1,113 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, Text, FlatList, Pressable, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
+import { Props, RootStackParamList } from '../navigation/types';
 import { NotificationSkeleton } from '../components/NotificationSkeleton';
+import { Timestamp } from '@react-native-firebase/firestore';
+import { NotificationItem, NotificationService, NotificationType } from '../services/notificationService';
+import { useAuthStore } from '../stores/authStore';
+import { FlashList } from '@shopify/flash-list';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
 
-interface NotificationItem {
-  id: string;
-  type: 'like' | 'comment' | 'follow';
-  user: string;
-  avatar: string;
-  content: string;
-  time: string;
-  isRead: boolean;
-}
 
-const MOCK_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: '1',
-    type: 'like',
-    user: 'Alex_W',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=250',
-    content: 'liked your photo from Ha Giang.',
-    time: '5m ago',
-    isRead: false,
-  },
-  {
-    id: '2',
-    type: 'comment',
-    user: 'Linh_Nguyen',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=250',
-    content: 'commented: "Wow! Beautiful place!"',
-    time: '2h ago',
-    isRead: true,
-  },
-  {
-    id: '3',
-    type: 'follow',
-    user: 'Travel Crew 🏔️',
-    avatar: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=250',
-    content: 'started following you.',
-    time: 'Yesterday',
-    isRead: true,
-  },
-];
 
 export const NotificationsScreen = ({ navigation }: Props): React.JSX.Element => {
+   const user = useAuthStore((state) => state.user);
   const [isLoading, setIsLoading] = useState(true);
+   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
+  const formatRelativeTime = (timestamp?: Timestamp | unknown): string => {
+  if (!timestamp || !(timestamp instanceof Timestamp)) return 'Vừa xong';
+  const now = Date.now();
+  const diffSec = Math.floor((now - timestamp.toMillis()) / 1000);
+  if (diffSec < 60) return 'Vừa xong';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} phút trước`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} giờ trước`;
+  if (diffSec < 604800) return `${Math.floor(diffSec / 86400)} ngày trước`;
+  return timestamp.toDate().toLocaleDateString('vi-VN');
+};
+
+
+const renderNotificationIcon = (type: NotificationType): React.JSX.Element => {
+  switch (type) {
+    case 'friend_request':
+      return <Ionicons name="person-add" size={20} color={Colors.primary} />;
+    case 'friend_accepted':
+      return <Ionicons name="people" size={20} color={Colors.primary} />;
+    case 'new_snap':
+      return <Ionicons name="camera" size={20} color={Colors.primary} />;
+    case 'streak_reminder':
+      return <Ionicons name="flame" size={20} color="#FF9500" />;
+    default:
+      return <Ionicons name="notifications" size={20} color={Colors.primary} />;
+  }
+};
   useEffect(() => {
-    const timer = setTimeout(() => {
+    if (!user?.uid) {
       setIsLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, []);
+      return;
+    }
+    const unsubscribe = NotificationService.subscribeNotifications(
+      user.uid,
+      (items) => {
+        setNotifications(items);
+        setIsLoading(false);
+      }
+    );
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [user?.uid]);
 
-  const renderItem = ({ item }: { item: NotificationItem }) => (
-    <Pressable style={[styles.notificationItem, !item.isRead && styles.unreadItem]}>
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
+    // 2. Xử lý khi nhấn vào thông báo: Đánh dấu đã đọc & Điều hướng
+  const handlePressItem = useCallback(
+    (item: NotificationItem) => {
+      if (!user?.uid) return;
+      // Đánh dấu đã đọc nếu chưa đọc
+      if (!item.isRead) {
+        NotificationService.markAsRead(user.uid, item.id);
+      }
+      // Điều hướng tương ứng
+      switch (item.type) {
+        case 'friend_request':
+        case 'friend_accepted':
+          navigation.navigate('SearchBuddies');
+          break;
+        case 'streak_reminder':
+          navigation.navigate('Conquest');
+          break;
+        default:
+          break;
+      }
+    },
+   [user?.uid, navigation]
+  );
+   const renderItem = ({ item }: { item: NotificationItem }) => (
+    <Pressable
+      style={[styles.notificationItem, !item.isRead && styles.unreadItem]}
+      onPress={() => handlePressItem(item)}
+    >
+      {item.senderAvatar ? (
+        <Image source={{ uri: item.senderAvatar }} style={styles.avatar} />
+      ) : (
+        <View style={[styles.avatar, styles.placeholderAvatar]}>
+          <Ionicons name="person" size={22} color={Colors.textMuted} />
+        </View>
+      )}
       <View style={styles.contentContainer}>
         <Text style={styles.textContent}>
-          <Text style={styles.username}>{item.user} </Text>
-          {item.content}
+          {item.senderName && <Text style={styles.username}>{item.senderName} </Text>}
+          {item.body || item.title}
         </Text>
-        <Text style={styles.time}>{item.time}</Text>
+        <Text style={styles.time}>{formatRelativeTime(item.createdAt)}</Text>
       </View>
-      {item.type === 'like' && <Ionicons name="heart" size={20} color={Colors.error} />}
-      {item.type === 'comment' && <Ionicons name="chatbubble" size={20} color={Colors.primary} />}
-      {item.type === 'follow' && <Ionicons name="person-add" size={20} color={Colors.primary} />}
+      <View style={styles.iconContainer}>
+        {renderNotificationIcon(item.type)}
+        {!item.isRead && <View style={styles.unreadDot} />}
+      </View>
     </Pressable>
   );
 
@@ -91,11 +127,15 @@ export const NotificationsScreen = ({ navigation }: Props): React.JSX.Element =>
             <NotificationSkeleton key={key} />
           ))}
         </View>
-      ) : (
-        <FlatList
-          data={MOCK_NOTIFICATIONS}
-          keyExtractor={item => item.id}
+      ) : notifications.length ===0 ?( <View style={styles.emptyContainer}>
+          <Ionicons name="notifications-off-outline" size={64} color={Colors.textMuted} />
+          <Text style={styles.emptyText}>Chưa có thông báo nào</Text>
+        </View>): (
+           <FlashList
+          data={notifications}
+          keyExtractor={(item) => item.id}
           renderItem={renderItem}
+        
           contentContainerStyle={styles.listContent}
         />
       )}
@@ -129,6 +169,13 @@ const styles = StyleSheet.create({
   spacer: {
     width: 36,
   },
+   unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.primary,
+    marginTop: 6,
+  },
   listContent: {
     paddingBottom: 40,
   },
@@ -139,6 +186,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+    iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 80,
   },
   unreadItem: {
     backgroundColor: 'rgba(112, 194, 180, 0.05)', // slight primary tint
@@ -154,10 +212,19 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     marginRight: 8,
   },
+    placeholderAvatar: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   textContent: {
     fontSize: 15,
     color: Colors.text,
     lineHeight: 20,
+  },
+  emptyText: {
+    color: Colors.textMuted,
+    fontSize: 15,
+    marginTop: 12,
   },
   username: {
     fontWeight: '600',

@@ -19,17 +19,19 @@ import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
 import { HelpAndSupportScreen } from '../screens/HelpAndSupportScreen';
 import { VerifyEmailScreen } from '../screens/VerifyEmailScreen';
 import { ChatScreen } from '../screens/ChatScreen';
-
+import { navigationRef } from './navigationRef';
+import { usePushNotifications } from '../hooks/useNotification';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export const RootNavigator = (): React.JSX.Element => {
   const { user } = useAuthStore();
 
-
+  // Kích hoạt lắng nghe thông báo và điều hướng toàn cục
+  usePushNotifications();
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,

@@ -30,7 +30,8 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.POST_NOTIFICATIONS"
       ],
       "googleServicesFile": "./google-services.json",
       "package": "com.hoangshpy.SnapStep"
@@ -58,6 +59,7 @@
       ],
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
+      "@react-native-firebase/messaging",
     
        [
         "expo-build-properties",
@@ -67,7 +69,8 @@
             "forceStaticLinking": [
               "RNFBApp",
               "RNFBAuth",
-              "RNFBFirestore"
+              "RNFBFirestore",
+              "RNFBMessaging"
             ]
           }
         }

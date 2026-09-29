@@ -67,7 +67,20 @@ service cloud.firestore {
         // XÓA: Chỉ chính chủ mới có quyền xóa hội thoại khỏi hộp thư của mình
         allow delete: if laChinhChu(userId);
       }
+
+      // -----------------------------------------------------------------------
+      // 2.2 BẢO MẬT SUBCOLLECTION "notifications" (HỘP THƯ THÔNG BÁO)
+      // Đường dẫn: users/{userId}/notifications/{notificationId}
+      // -----------------------------------------------------------------------
+      match /notifications/{notificationId} {
+        // ĐỌC, SỬA, XÓA: Chỉ chính chủ userId mới có quyền xem, đánh dấu đã đọc hoặc xóa thông báo
+        allow read, update, delete: if laChinhChu(userId);
+
+        // TẠO MỚI: Cho phép bất kỳ người dùng nào đã đăng nhập gửi thông báo đến userId này
+        allow create: if daDangNhap();
+      }
     }
+
 
 
     // =========================================================================
