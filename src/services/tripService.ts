@@ -50,20 +50,18 @@ export const TripService = {
     limitCount: number,
     userId?: string,
   ): Promise<{ trips: TripWithId[]; lastDoc: DocumentSnapshot | null }> => {
+
+    // Khi không truyền userId, không query tự do để tránh vi phạm Security Rules (permission-denied)
+    if (!userId) return { trips: [], lastDoc: null };
+
     const db = getFirestore();
     const tripsRef = collection(db, "trips");
-    let q;
-
-    if (userId) {
-      q = query(
-        tripsRef,
-        where("userId", "==", userId),
-        orderBy("createdAt", "desc"),
-        limit(limitCount),
-      );
-    } else {
-      q = query(tripsRef, orderBy("createdAt", "desc"), limit(limitCount));
-    }
+    const q = query(
+      tripsRef,
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc"),
+      limit(limitCount),
+    );
 
     const snapshot = await getDocs(q);
     if (snapshot.empty) return { trips: [], lastDoc: null };
@@ -82,26 +80,19 @@ export const TripService = {
     lastDocSnap: DocumentSnapshot,
     userId?: string,
   ): Promise<{ trips: TripWithId[]; lastDoc: DocumentSnapshot | null }> => {
+
+    // Khi không truyền userId, không query tự do để tránh vi phạm Security Rules (permission-denied)
+    if (!userId) return { trips: [], lastDoc: null };
+
     const db = getFirestore();
     const tripsRef = collection(db, "trips");
-    let q;
-
-    if (userId) {
-      q = query(
-        tripsRef,
-        where("userId", "==", userId),
-        orderBy("createdAt", "desc"),
-        startAfter(lastDocSnap),
-        limit(limitCount),
-      );
-    } else {
-      q = query(
-        tripsRef,
-        orderBy("createdAt", "desc"),
-        startAfter(lastDocSnap),
-        limit(limitCount),
-      );
-    }
+    const q = query(
+      tripsRef,
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc"),
+      startAfter(lastDocSnap),
+      limit(limitCount),
+    );
 
     const snapshot = await getDocs(q);
     if (snapshot.empty) return { trips: [], lastDoc: null };

@@ -135,7 +135,6 @@ const renderNotificationIcon = (type: NotificationType): React.JSX.Element => {
           data={notifications}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-        
           contentContainerStyle={styles.listContent}
         />
       )}

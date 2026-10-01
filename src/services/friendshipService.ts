@@ -63,26 +63,43 @@ export const FriendshipService = {
       createdAt: now,
       updatedAt: now,
     });
-    // tạo thông báo cho nguời nhận lời mời 
-    const notification:CreateNotificationParams={
-      type:"friend_request",
-      body:'',
-      recipientId:targetUid,
-      senderId:'Bạn nhận đuợc lời mời kết bạn mới',
-      title:'Có 1 nguời muốn kết bạn với bạn'
-    }
 
-    await NotificationService.createNotification( notification) 
+    // 3. Tạo thông báo với ID cố định (friend_req_{myUid}) ngay trong Batch để dễ dàng xóa khi hủy lời mời
+    const notiDocRef = doc(db, "users", targetUid, "notifications", `friend_req_${myUid}`);
+    batch.set(notiDocRef, {
+      type: "friend_request",
+      title: "Có 1 người muốn kết bạn với bạn",
+      body: "Đã gửi cho bạn một lời mời kết bạn.",
+      senderId: myUid,
+      recipientId: targetUid,
+      isRead: false,
+      createdAt: now,
+    });
 
     await batch.commit();
   },
 
-  // Hủy lời mời kết bạn đã gửi
+  // Hủy lời mời kết bạn đã gửi (Xóa quan hệ 2 bên và xóa luôn thông báo bên hộp thư người nhận)
   cancelFriendRequest: async (myUid: string, targetUid: string): Promise<void> => {
-    return deleteRelationshipPair(myUid, targetUid);
+    if (!myUid || !targetUid) return;
+
+    const db = getFirestore();
+    const batch = writeBatch(db);
+
+    // 1. Xóa quan hệ bạn bè 2 chiều
+    const myDocRef = doc(db, "friendships", myUid, "friends", targetUid);
+    const targetDocRef = doc(db, "friendships", targetUid, "friends", myUid);
+    batch.delete(myDocRef);
+    batch.delete(targetDocRef);
+
+    // 2. Xóa luôn thông báo lời mời trong hộp thư của người nhận
+    const notiDocRef = doc(db, "users", targetUid, "notifications", `friend_req_${myUid}`);
+    batch.delete(notiDocRef);
+
+    await batch.commit();
   },
 
-  // Chấp nhận lời mời kết bạn (Chuyển cả 2 bên thành "accepted")
+  // Chấp nhận lời mời kết bạn (Chuyển cả 2 bên thành "accepted" và gửi thông báo chúc mừng)
   acceptFriendRequest: async (myUid: string, targetUid: string): Promise<void> => {
     if (!myUid || !targetUid) return;
 
@@ -103,21 +120,39 @@ export const FriendshipService = {
       updatedAt: now,
     });
 
-    // gửi thông báo khi chấp nhận lời mời 
-    const notification:CreateNotificationParams={
-      type:"friend_accepted",
-      body:'',
-      recipientId:targetUid,
-      senderId:'Bạn mới ',
-      title:'Yêu cần kết bạn của bạn đã được xác nhận'
-    }
+    // Xóa thông báo lời mời cũ trong hộp thư của chính mình (myUid)
+    const oldNotiDocRef = doc(db, "users", myUid, "notifications", `friend_req_${targetUid}`);
+    batch.delete(oldNotiDocRef);
 
     await batch.commit();
+
+    // Gửi thông báo khi chấp nhận lời mời đến người gửi ban đầu
+    const notification: CreateNotificationParams = {
+      type: "friend_accepted",
+      title: "Yêu cầu kết bạn đã được xác nhận",
+      body: "Đã chấp nhận lời mời kết bạn của bạn.",
+      recipientId: targetUid,
+      senderId: myUid,
+    };
+    await NotificationService.createNotification(notification);
   },
 
-  // Từ chối lời mời kết bạn
+  // Từ chối lời mời kết bạn (Xóa quan hệ 2 bên và xóa thông báo trong hòm thư của mình)
   rejectFriendRequest: async (myUid: string, targetUid: string): Promise<void> => {
-    return deleteRelationshipPair(myUid, targetUid);
+    if (!myUid || !targetUid) return;
+
+    const db = getFirestore();
+    const batch = writeBatch(db);
+
+    const myDocRef = doc(db, "friendships", myUid, "friends", targetUid);
+    const targetDocRef = doc(db, "friendships", targetUid, "friends", myUid);
+    const notiDocRef = doc(db, "users", myUid, "notifications", `friend_req_${targetUid}`);
+
+    batch.delete(myDocRef);
+    batch.delete(targetDocRef);
+    batch.delete(notiDocRef);
+
+    await batch.commit();
   },
 
   // Hủy kết bạn (Unfriend)

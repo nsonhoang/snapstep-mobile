@@ -70,6 +70,7 @@ export const SearchBuddiesScreen = ({ navigation }: Props): React.JSX.Element =>
     (targetUid: string) => {
       if (!currentUserId) return;
       cancelRequest(currentUserId, targetUid);
+      
     },
     [currentUserId, cancelRequest]
   );

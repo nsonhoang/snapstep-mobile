@@ -1,6 +1,6 @@
 import { AuthorizationStatus, getMessaging, RemoteMessage, requestPermission } from '@react-native-firebase/messaging';
 
-import { collection, deleteDoc, doc, FieldValue, getDocs, getFirestore, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, startAfter, Timestamp, updateDoc } from "@react-native-firebase/firestore";
+import { collection, deleteDoc, doc, FieldValue, getDocs, getFirestore, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, startAfter, Timestamp, updateDoc, where, writeBatch } from "@react-native-firebase/firestore";
 import { PermissionsAndroid, Platform } from "react-native";
 
 export type NotificationType =  | 'chat_message'       // Có tin nhắn mới
@@ -229,11 +229,16 @@ export const NotificationService = {
   },
 
   deleteNotification: async (uid: string, notificationId: string): Promise<void> => {
-    if (!uid || !notificationId) return;
+    if (!uid ) return;
     try {
       const db = getFirestore();
-      const notiDoc = doc(db, 'users', uid, 'notifications', notificationId);
-      await deleteDoc(notiDoc);
+      if(notificationId){
+          const notiDoc = doc(db, 'users', uid, 'notifications', notificationId);
+          await deleteDoc(notiDoc);
+          return 
+      }
+    
+    
       console.log('Đã xóa thông báo:', notificationId);
     } catch (error) {
       console.error('Lỗi khi xóa thông báo:', error);
@@ -271,6 +276,38 @@ export const NotificationService = {
     }
   },
 
-  
+  deleteNotificationBySenderId :async (
+  recieveID: string,
+  senderId: string
+): Promise<void> => {
+
+  try {
+    const db = getFirestore();
+    
+    // Đường dẫn: users/{myUid}/notifications
+    const notiRef = collection(db, 'users', recieveID, 'notifications');
+    // Truy vấn: lọc document có trường senderId == senderId
+    const q = query(
+      notiRef,
+      where('senderId', '==', senderId),
+      where('type','==',
+"friend_request"),
+      limit(1) // Lấy 1 cái
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+      console.log('Không tìm thấy thông báo nào từ senderId này.');
+    
+    }
+    const batch = writeBatch(db);
+      snapshot.docs.forEach((docSnap) => {
+        batch.delete(docSnap.ref);
+      });
+      await batch.commit();
+      console.log(`Đã dọn dẹp ${snapshot.size} thông báo từ người gửi:`, senderId);
+    } catch (error) {
+      console.error('Lỗi khi xóa thông báo bằng batch:', error);
+    }
+}
 
 }

@@ -17,21 +17,16 @@ service cloud.firestore {
     }
 
     // Kiểm tra: Người xem có phải là bạn bè đã 'accepted' của tác giả không?
+    // Tối ưu: Chỉ kiểm tra 1 chiều từ phía người xem vì hệ thống kết bạn lưu 2 chiều đối xứng (giảm 50% chi phí đọc)
     function laBanBe(tacGiaUid) {
       return daDangNhap() && (
         // Trường hợp 1: Tự mình xem bài viết/chuyến đi của chính mình
         request.auth.uid == tacGiaUid ||
         
-        // Trường hợp 2: Kiểm tra trong subcollection "friends" của chính người xem
+        // Trường hợp 2: Kiểm tra trong danh bạ bạn bè của người xem
         (
           exists(/databases/$(database)/documents/friendships/$(request.auth.uid)/friends/$(tacGiaUid)) &&
           get(/databases/$(database)/documents/friendships/$(request.auth.uid)/friends/$(tacGiaUid)).data.status == 'accepted'
-        ) ||
-
-        // Trường hợp 3: Kiểm tra trong subcollection "friends" của tác giả
-        (
-          exists(/databases/$(database)/documents/friendships/$(tacGiaUid)/friends/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/friendships/$(tacGiaUid)/friends/$(request.auth.uid)).data.status == 'accepted'
         )
       );
     }
@@ -73,8 +68,14 @@ service cloud.firestore {
       // Đường dẫn: users/{userId}/notifications/{notificationId}
       // -----------------------------------------------------------------------
       match /notifications/{notificationId} {
-        // ĐỌC, SỬA, XÓA: Chỉ chính chủ userId mới có quyền xem, đánh dấu đã đọc hoặc xóa thông báo
-        allow read, update, delete: if laChinhChu(userId);
+        // ĐỌC, SỬA: Chỉ chính chủ userId mới có quyền xem hoặc đánh dấu đã đọc
+        allow read, update: if laChinhChu(userId);
+
+        // XÓA: Cho phép chính chủ userId HOẶC người gửi thông báo này (khi hủy kết bạn)
+        allow delete: if daDangNhap() && (
+          laChinhChu(userId) || 
+          resource.data.senderId == request.auth.uid
+        );
 
         // TẠO MỚI: Cho phép bất kỳ người dùng nào đã đăng nhập gửi thông báo đến userId này
         allow create: if daDangNhap();
@@ -99,12 +100,16 @@ service cloud.firestore {
 
       // CẬP NHẬT: 
       // - Hoặc chính tác giả sửa bài
-      // - Hoặc bạn bè chỉ được phép cập nhật số lượng cảm xúc (like, love, hate, haha)
+      // - Hoặc bạn bè chỉ được phép cập nhật số lượng cảm xúc (like, love, hate, haha) và bắt buộc phải là số nguyên không âm
       allow update: if daDangNhap() && (
         laChinhChu(resource.data.authorId) ||
         (
           laBanBe(resource.data.authorId) && 
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['like', 'love', 'hate', 'haha'])
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['like', 'love', 'hate', 'haha']) &&
+          (!('like' in request.resource.data) || (request.resource.data.like is int && request.resource.data.like >= 0)) &&
+          (!('love' in request.resource.data) || (request.resource.data.love is int && request.resource.data.love >= 0)) &&
+          (!('hate' in request.resource.data) || (request.resource.data.hate is int && request.resource.data.hate >= 0)) &&
+          (!('haha' in request.resource.data) || (request.resource.data.haha is int && request.resource.data.haha >= 0))
         )
       );
 
@@ -136,8 +141,26 @@ service cloud.firestore {
       // ĐỌC: Chỉ chính chủ userId mới xem được danh sách bạn bè riêng tư của mình
       allow read: if laChinhChu(userId);
 
-      // GHI (Tạo, Sửa, Xóa): Cho phép 1 trong 2 người thực hiện
-      allow write: if daDangNhap() && (request.auth.uid == userId || request.auth.uid == friendId);
+      // TẠO LỜI MỜI MỚI (CREATE):
+      // Người gửi chỉ được tạo lời mời ở 2 trạng thái:
+      // - Ghi vào kho của mình: phải là 'outgoing_pending'
+      // - Ghi vào kho của người nhận: phải là 'incoming_pending'
+      // CẤM TUYỆT ĐỐI việc tạo thẳng 'accepted'
+      allow create: if daDangNhap() && (
+        (request.auth.uid == userId && request.resource.data.status == 'outgoing_pending') ||
+        (request.auth.uid == friendId && request.resource.data.status == 'incoming_pending')
+      );
+
+      // DUYỆT LỜI MỜI KẾT BẠN (UPDATE):
+      // Khi nhấn Chấp nhận (acceptFriendRequest), chỉ người nhận lời mời mới có quyền kích hoạt chuyển sang 'accepted'
+      allow update: if daDangNhap() && (
+        (resource.data.status == 'incoming_pending' && request.auth.uid == userId && request.resource.data.status == 'accepted') ||
+        (resource.data.status == 'outgoing_pending' && request.auth.uid == friendId && request.resource.data.status == 'accepted')
+      );
+
+      // HỦY LỜI MỜI / TỪ CHỐI / HỦY KẾT BẠN (DELETE):
+      // Cả 2 người (người gửi hoặc người nhận) đều có quyền xóa mối quan hệ này
+      allow delete: if daDangNhap() && (request.auth.uid == userId || request.auth.uid == friendId);
     }
   }
 }

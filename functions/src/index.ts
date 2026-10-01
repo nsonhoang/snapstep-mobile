@@ -39,8 +39,10 @@ async function cleanupDeadTokens(
       .collection('users')
       .doc(userId)
       .update({
+        fcmToken: admin.firestore.FieldValue.arrayRemove(...deadTokens),
         fcmTokens: admin.firestore.FieldValue.arrayRemove(...deadTokens),
-      });
+      })
+      .catch(() => {});
     console.log(`🧹 Đã dọn dẹp ${deadTokens.length} token không hợp lệ cho user: ${userId}`);
   }
 }
@@ -57,9 +59,9 @@ export const sendSocialNotification = onDocumentCreated(
     const notiData = snap.data();
     const recipientId = event.params.userId;
 
-    // Lấy danh sách fcmTokens của người nhận
+    // Lấy danh sách fcmTokens của người nhận (hỗ trợ cả fcmToken và fcmTokens)
     const userDoc = await admin.firestore().collection('users').doc(recipientId).get();
-    const fcmTokens: string[] = userDoc.data()?.fcmTokens || [];
+    const fcmTokens: string[] = userDoc.data()?.fcmToken || userDoc.data()?.fcmTokens || [];
 
     if (!fcmTokens || fcmTokens.length === 0) {
       console.log(`ℹ️ User ${recipientId} không có thiết bị nhận push notification.`);
@@ -120,7 +122,7 @@ export const sendChatNotification = onValueCreated(
 
     // Lấy danh sách fcmTokens của người nhận
     const receiverDoc = await admin.firestore().collection('users').doc(receiverId).get();
-    const fcmTokens: string[] = receiverDoc.data()?.fcmTokens || [];
+    const fcmTokens: string[] = receiverDoc.data()?.fcmToken || [];
 
     if (!fcmTokens || fcmTokens.length === 0) return;
 
