@@ -23,6 +23,7 @@ import { Colors } from '../constants/Colors';
 import { useAlert } from '../components/AlertProvider';
 import { CustomInput } from '../components/CustomInput';
 import { RegisterScreenProps } from '../navigation/types';
+import { useTranslation } from '../i18n';
 
 const CompassIcon = (): React.JSX.Element => (
   <View style={styles.compassOuter}>
@@ -36,6 +37,7 @@ const CompassIcon = (): React.JSX.Element => (
 );
 
 export const RegisterScreen = ({ navigation }: RegisterScreenProps): React.JSX.Element => {
+  const { t } = useTranslation();
   const { register } = useAuthStore();
   const { showAlert } = useAlert();
   
@@ -63,36 +65,36 @@ export const RegisterScreen = ({ navigation }: RegisterScreenProps): React.JSX.E
   const handleRegister = async (): Promise<void> => {
     if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
       showAlert({
-        title: 'Registration',
-        message: 'Please fill in all fields!',
+        title: t.auth.authAlertTitle,
+        message: t.auth.fillAllFieldsAlert,
         type: 'error',
       });
-
-      
+      return;
     }
 
-     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if(!emailRegex.test(email)) {
-        showAlert({
-          title: 'Registration',
-          message: 'Please enter a valid email address!',
-          type: 'error',
-        });
-        return;
-      }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      showAlert({
+        title: t.auth.authAlertTitle,
+        message: t.auth.validEmailAlert,
+        type: 'error',
+      });
+      return;
+    }
 
-      if(password.length < 6) {
-        showAlert({
-          title: 'Registration',
-          message: 'Password must be at least 6 characters long!',
-          type: 'error',
-        });
-        return;
-      }
+    if (password.length < 6) {
+      showAlert({
+        title: t.auth.authAlertTitle,
+        message: t.auth.passMinLengthAlert,
+        type: 'error',
+      });
+      return;
+    }
+
     if (password !== confirmPassword) {
       showAlert({
-        title: 'Registration',
-        message: 'Passwords do not match!',
+        title: t.auth.authAlertTitle,
+        message: t.auth.passMismatchAlert,
         type: 'error',
       });
       return;
@@ -101,8 +103,20 @@ export const RegisterScreen = ({ navigation }: RegisterScreenProps): React.JSX.E
     setIsLoading(true);
     try {
       await register(email.trim(), password);
-    } catch (error) {
-      console.log(error);
+    } catch (error:any) {
+ if (error?.code === 'auth/email-already-in-use') {
+    showAlert({
+      title: t.auth.authAlertTitle,
+      message: t.auth.authMessageExistEmail,
+      type: 'error',
+    });
+  } else {
+    showAlert({
+      title: t.auth.authAlertTitle,
+      message: error?.message || 'Đăng ký thất bại, vui lòng thử lại!',
+      type: 'error',
+    });
+  }
     } finally {
       setIsLoading(false);
     }
@@ -139,14 +153,14 @@ export const RegisterScreen = ({ navigation }: RegisterScreenProps): React.JSX.E
 
               <View style={styles.headerContainer}>
                 <CompassIcon />
-                <Text style={styles.title}>Join SnapStep</Text>
-                <Text style={styles.subtitle}>Start sharing your journeys.</Text>
+                <Text style={styles.title}>{t.auth.joinTitle}</Text>
+                <Text style={styles.subtitle}>{t.auth.joinSubtitle}</Text>
               </View>
 
               <View style={styles.formContainer}>
                 <CustomInput
                   style={styles.textInput}
-                  placeholder="Email address"
+                  placeholder={t.auth.emailPlaceholder}
                   placeholderTextColor={Colors.textMuted}
                   value={email}
                   onChangeText={setEmail}
@@ -157,7 +171,7 @@ export const RegisterScreen = ({ navigation }: RegisterScreenProps): React.JSX.E
                 
                 <CustomInput
                   style={styles.textInput}
-                  placeholder="Password"
+                  placeholder={t.auth.passwordPlaceholder}
                   placeholderTextColor={Colors.textMuted}
                   value={password}
                   onChangeText={setPassword}
@@ -167,7 +181,7 @@ export const RegisterScreen = ({ navigation }: RegisterScreenProps): React.JSX.E
 
                 <CustomInput
                   style={styles.textInput}
-                  placeholder="Confirm Password"
+                  placeholder={t.auth.confirmPasswordPlaceholder}
                   placeholderTextColor={Colors.textMuted}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -185,7 +199,7 @@ export const RegisterScreen = ({ navigation }: RegisterScreenProps): React.JSX.E
                 >
                   <View style={styles.buttonContent}>
                     <Text style={styles.primaryButtonText}>
-                      {isLoading ? 'Creating account...' : 'Create Account'}
+                      {isLoading ? t.auth.creatingAccount : t.auth.createAccount}
                     </Text>
                   </View>
                 </Pressable>
@@ -193,7 +207,7 @@ export const RegisterScreen = ({ navigation }: RegisterScreenProps): React.JSX.E
 
               <View style={styles.footerContainer}>
                 <Text style={styles.footerText}>
-                  Route: SnapStep Register
+                  SnapStep
                 </Text>
               </View>
             </KeyboardAvoidingView>
@@ -286,6 +300,7 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.white,
   },
   title: {
+    textAlign:'center',
     fontSize: 40,
     fontWeight: '900',
     color: Colors.white,

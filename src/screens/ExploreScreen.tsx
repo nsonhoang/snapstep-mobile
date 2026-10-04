@@ -25,11 +25,13 @@ import { useAuthStore } from "../stores/authStore";
 import { useFriendshipStore } from "../stores/friendshipStore";
 import { User } from "../services/userService";
 import { Trip } from "../services/tripService";
+import { useTranslation } from "../i18n";
 
 export const ExploreScreen = ({
   navigation,
   route,
 }: ExploreScreenProps): React.JSX.Element => {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedChipId, setSelectedChipId] = useState<string>(
     (route?.params as { filter?: string })?.filter || "all",
@@ -134,10 +136,10 @@ export const ExploreScreen = ({
   const filterChips: FilterChipItem[] = useMemo(() => {
     const myId = user?.uid || "me";
     const chips: FilterChipItem[] = [
-      { id: "all", label: "Tất cả" },
+      { id: "all", label: t.explore.allFilter },
       {
         id: myId,
-        label: "Me",
+        label: t.explore.meFilter,
         avatar: user?.photoURL || undefined,
       },
     ];
@@ -237,16 +239,16 @@ export const ExploreScreen = ({
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <Feather name="compass" size={56} color={Colors.outline} />
-      <Text style={styles.emptyTitle}>Chưa có khoảnh khắc nào</Text>
+      <Text style={styles.emptyTitle}>{t.explore.emptyTitle}</Text>
       <Text style={styles.emptySubtitle}>
-        Kết nối với bạn bè để cùng chia sẻ những bức ảnh hành trình tuyệt đẹp!
+        {t.explore.emptySubtitle}
       </Text>
       <Pressable
         style={({ pressed }) => [styles.findBuddiesBtn, pressed && styles.pressed]}
         onPress={() => navigation.navigate("SearchBuddies")}
       >
         <Feather name="user-plus" size={16} color={Colors.black} />
-        <Text style={styles.findBuddiesBtnText}>Tìm Bạn Bè Ngay</Text>
+        <Text style={styles.findBuddiesBtnText}>{t.explore.findBuddiesBtn}</Text>
       </Pressable>
     </View>
   );

@@ -15,9 +15,12 @@ import {
   ChatService,
   UserChatSummaryUI,
 } from '../services/chatService';
+import { NotificationService } from '../services/notificationService';
 import { Timestamp } from '@react-native-firebase/firestore';
+import { useTranslation } from '../i18n';
 
 export const FriendsScreen = (): React.JSX.Element => {
+  const { t } = useTranslation();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuthStore();
   const currentUserId = user?.uid || '';
@@ -31,6 +34,22 @@ export const FriendsScreen = (): React.JSX.Element => {
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [chatSummaries, setChatSummaries] = useState<Record<string, UserChatSummaryUI>>({});
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState<boolean>(false);
+
+  // Lắng nghe trạng thái thông báo chưa đọc thời gian thực
+  useEffect(() => {
+    if (!currentUserId) return;
+    const unsubscribe = NotificationService.subscribeNotifications(
+      currentUserId,
+      (items) => {
+        const hasUnread = items.some((item) => !item.isRead);
+        setHasUnreadNotifications(hasUnread);
+      }
+    );
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [currentUserId]);
 
   // Lắng nghe cập nhật danh sách bạn bè thời gian thực
   useEffect(() => {
@@ -131,13 +150,14 @@ export const FriendsScreen = (): React.JSX.Element => {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
+        <Text style={styles.headerTitle}>{t.friends.headerTitle}</Text>
         <View style={styles.iconContainer}>
           <Pressable
             style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
             onPress={navigateToNotification}
           >
             <Ionicons name="notifications-outline" size={24} color={Colors.primary} />
+            {hasUnreadNotifications && <View style={styles.unreadDot} />}
           </Pressable>
 
           <Pressable
@@ -159,7 +179,7 @@ export const FriendsScreen = (): React.JSX.Element => {
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Tìm kiếm bạn bè..."
+          placeholder={t.friends.searchPlaceholder}
         />
       </View>
 
@@ -240,6 +260,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     position: 'relative',
+  },
+  unreadDot: {
+    position: 'absolute',
+    top: 9,
+    right: 9,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: Colors.error,
+    borderWidth: 1.5,
+    borderColor: Colors.surface,
   },
   badge: {
     position: 'absolute',

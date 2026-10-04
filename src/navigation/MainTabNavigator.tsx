@@ -15,6 +15,7 @@ import { ExploreScreen } from '../screens/ExploreScreen';
 import { MapScreen } from '../screens/MapScreen';
 import { FriendsScreen } from '../screens/FriendsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { useTranslation } from '../i18n';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -64,6 +65,8 @@ const AnimatedSnapTabIcon = (): React.JSX.Element => {
 };
 
 export const MainTabNavigator = (): React.JSX.Element => {
+  const { t } = useTranslation();
+
   return (
     <Tab.Navigator
       initialRouteName="Explore"
@@ -80,7 +83,7 @@ export const MainTabNavigator = (): React.JSX.Element => {
         name="Explore"
         component={ExploreScreen}
         options={{
-          title: 'Explore',
+          title: t.tabs.explore,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="compass-outline" size={size || 22} color={color} />
           ),
@@ -90,7 +93,7 @@ export const MainTabNavigator = (): React.JSX.Element => {
         name="Map"
         component={MapScreen}
         options={{
-          title: 'Map',
+          title: t.tabs.map,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="map-outline" size={size || 22} color={color} />
           ),
@@ -117,7 +120,7 @@ export const MainTabNavigator = (): React.JSX.Element => {
         name="Friends"
         component={FriendsScreen}
         options={{
-          title: 'Friends',
+          title: t.tabs.friends,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people-outline" size={size || 22} color={color} />
           ),
@@ -127,7 +130,7 @@ export const MainTabNavigator = (): React.JSX.Element => {
         name="Profile"
         component={ProfileScreen}
         options={{
-          title: 'Profile',
+          title: t.tabs.profile,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size || 22} color={color} />
           ),

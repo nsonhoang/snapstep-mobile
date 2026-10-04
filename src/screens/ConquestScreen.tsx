@@ -12,6 +12,7 @@ import { GroupLeaderboard } from '../components/GroupLeaderboard';
 import vietnamGeoData from '../../assets/vn_provinces_simplified.json';
 import { useAuthStore } from '../stores/authStore';
 import { ProvinceInfo, User, UserService } from '../services/userService';
+import { useTranslation } from '../i18n';
 
 type ConquestScreenProps = NativeStackScreenProps<RootStackParamList, 'Conquest'>;
 
@@ -46,6 +47,7 @@ const LEADERBOARD_DATA = [
 ];
 
 export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.Element => {
+  const { t } = useTranslation();
   const [countPhoto, setCountPhoto] = useState(0);
   // Trạng thái map đã render xong hay chưa (dùng để hiện loading overlay)
 
@@ -132,7 +134,7 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
         >
           <Ionicons name="chevron-back" size={28} color={Colors.white} />
         </Pressable>
-        <Text style={styles.headerTitle}>Conquest Dashboard</Text>
+        <Text style={styles.headerTitle}>{t.conquest.headerTitle}</Text>
         <View style={styles.headerPlaceholder} />
       </View>
 
@@ -182,7 +184,7 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
             android_ripple={{ color: 'rgba(255,255,255,0.08)' }}
           >
             <View style={styles.statsTextContainer}>
-              <Text style={styles.statsLabel}>Provinces Visited</Text>
+              <Text style={styles.statsLabel}>{t.conquest.provincesVisited}</Text>
               <Text style={styles.statsValue}>
                 {Object.keys(conqueredProvinces).length} <Text style={styles.statsValueTotal}>/ 63</Text>
               </Text>
@@ -194,8 +196,8 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
           {/* Card 2: Thứ hạng khám phá */}
           <View style={styles.statsCard}>
             <View style={styles.statsTextContainer}>
-              <Text style={styles.statsLabel}>Travel Rank</Text>
-              <Text style={styles.statsValueSmall}>Bronze Explorer</Text>
+              <Text style={styles.statsLabel}>{t.conquest.travelRank}</Text>
+              <Text style={styles.statsValueSmall}>{t.conquest.bronzeExplorer}</Text>
             </View>
             <View style={styles.statsIconBox}>
               <Text style={styles.statsEmoji}>🥉</Text>
@@ -212,7 +214,7 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
             android_ripple={{ color: 'rgba(255,255,255,0.08)' }}
           >
             <View style={styles.statsTextContainer}>
-              <Text style={styles.statsLabel}>Total Photos</Text>
+              <Text style={styles.statsLabel}>{t.conquest.totalPhotos}</Text>
               <Text style={styles.statsValue}>{countPhoto}</Text>
             </View>
             <View style={styles.statsIconBox}>
@@ -223,8 +225,8 @@ export const ConquestScreen = ({ navigation }: ConquestScreenProps): React.JSX.E
           {/* Card 4: Chuỗi ngày liên tục */}
           <View style={styles.statsCard}>
             <View style={styles.statsTextContainer}>
-              <Text style={styles.statsLabel}>Longest Streak</Text>
-              <Text style={styles.statsValue}>7 Days</Text>
+              <Text style={styles.statsLabel}>{t.conquest.longestStreak}</Text>
+              <Text style={styles.statsValue}>{t.conquest.daysStreak}</Text>
             </View>
             <View style={styles.statsIconBox}>
               <Text style={styles.statsEmoji}>🔥</Text>

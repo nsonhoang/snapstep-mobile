@@ -2,14 +2,17 @@ import React from 'react';
 import { StyleSheet, View, Text, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
+import { useTranslation } from '../i18n';
 
 export const MilestoneList = (): React.JSX.Element => {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.section}>
       {/* Tiêu đề danh sách */}
       <View style={styles.header}>
-        <Text style={styles.title}>Travel Milestones</Text>
-        <Text style={styles.viewAll}>View All</Text>
+        <Text style={styles.title}>{t.milestones.title}</Text>
+        <Text style={styles.viewAll}>{t.milestones.viewAll}</Text>
       </View>
       
       {/* Danh sách cuộn ngang */}
@@ -22,28 +25,28 @@ export const MilestoneList = (): React.JSX.Element => {
           <View style={styles.iconWrapper}>
             <MaterialIcons name="landscape" size={28} color={Colors.primary} />
           </View>
-          <Text style={styles.badgeText}>Ha Giang Conqueror</Text>
+          <Text style={styles.badgeText}>{t.milestones.haGiang}</Text>
         </View>
         
         <View style={styles.badgeCard}>
           <View style={styles.iconWrapper}>
             <MaterialIcons name="location-city" size={28} color={Colors.primary} />
           </View>
-          <Text style={styles.badgeText}>City Hopper</Text>
+          <Text style={styles.badgeText}>{t.milestones.cityHopper}</Text>
         </View>
         
         <View style={styles.badgeCard}>
           <View style={styles.iconWrapper}>
             <MaterialIcons name="nights-stay" size={28} color={Colors.primary} />
           </View>
-          <Text style={styles.badgeText}>Night Owl</Text>
+          <Text style={styles.badgeText}>{t.milestones.nightOwl}</Text>
         </View>
         
         <View style={styles.badgeCard}>
           <View style={styles.iconWrapper}>
             <MaterialIcons name="restaurant" size={28} color={Colors.primary} />
           </View>
-          <Text style={styles.badgeText}>Street Foodie</Text>
+          <Text style={styles.badgeText}>{t.milestones.streetFoodie}</Text>
         </View>
       </ScrollView>
     </View>

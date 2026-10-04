@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { Colors } from '../constants/Colors';
+import { useTranslation } from '../i18n';
 
 // Interface dữ liệu mỗi người chơi trong bảng xếp hạng
 interface LeaderboardPlayer {
@@ -23,9 +24,11 @@ interface GroupLeaderboardProps {
  * Người dùng hiện tại được highlight bằng viền xanh Mint
  */
 export const GroupLeaderboard = ({ players }: GroupLeaderboardProps): React.JSX.Element => {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.leaderboardCard}>
-      <Text style={styles.leaderboardTitle}>Group Leaderboard</Text>
+      <Text style={styles.leaderboardTitle}>{t.conquest.leaderboardTitle}</Text>
 
       <View style={styles.leaderboardList}>
         {players.map((player) => (
@@ -79,7 +82,7 @@ export const GroupLeaderboard = ({ players }: GroupLeaderboardProps): React.JSX.
                   player.isCurrentUser && { color: Colors.primary, fontWeight: '700' },
                 ]}
               >
-                {player.score} pts
+                {player.score} {t.conquest.pointsUnit}
               </Text>
               {player.badge ? (
                 <Text style={styles.badgeEmoji}>{player.badge}</Text>

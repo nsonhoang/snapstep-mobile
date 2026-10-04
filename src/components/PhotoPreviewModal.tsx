@@ -29,6 +29,7 @@ import { useAuthStore } from "../stores/authStore";
 import { useLocation } from "../hooks/useLocation";
 import { Location } from "../services/postService";
 import * as LocationExpo from "expo-location";
+import { useTranslation } from "../i18n";
 
 export interface PhotoPreviewModalProps {
   visible: boolean;
@@ -48,6 +49,7 @@ export const PhotoPreviewModal = ({
   onClose,
   onPost,
 }: PhotoPreviewModalProps): React.JSX.Element => {
+  const { t } = useTranslation();
   const { trips, fetchTrips, selectedTripId, setSelectedTripId } =
     useTripStore();
   const { user } = useAuthStore();
@@ -198,7 +200,7 @@ export const PhotoPreviewModal = ({
             <Pressable onPress={onClose} style={styles.iconButton} hitSlop={8}>
               <Feather name="x" size={24} color={Colors.white} />
             </Pressable>
-            <Text style={styles.headerTitle}>Post Preview</Text>
+            <Text style={styles.headerTitle}>{t.post.postPreview}</Text>
             <View style={{ width: 40 }} />
           </View>
 
@@ -252,7 +254,7 @@ export const PhotoPreviewModal = ({
                       color={Colors.primary}
                     />
                     <Text style={styles.optionTitle}>
-                      Chia sẻ lên Bản đồ Bước chân
+                      {t.post.shareToMap}
                     </Text>
                   </View>
                   {shareToMap ? (
@@ -291,7 +293,7 @@ export const PhotoPreviewModal = ({
                         },
                       ]}
                     >
-                      Vị trí sẽ không được lưu vào bài viết này
+                      {t.post.locationNotSaved}
                     </Text>
                   )}
                 </View>
@@ -324,7 +326,7 @@ export const PhotoPreviewModal = ({
               style={[styles.actionButton, styles.retakeButton]}
             >
               <Feather name="download" size={18} color={Colors.white} />
-              <Text style={styles.retakeText}>Lưu ảnh</Text>
+              <Text style={styles.retakeText}>{t.post.savePhoto}</Text>
             </Pressable>
 
             <Pressable
@@ -342,7 +344,7 @@ export const PhotoPreviewModal = ({
                 <Feather name="send" size={18} color={Colors.black} />
               )}
               <Text style={styles.postText}>
-                {isUploading ? "Đang tải..." : "Đăng ảnh"}
+                {isUploading ? t.post.uploading : t.post.postPhoto}
               </Text>
             </Pressable>
           </View>

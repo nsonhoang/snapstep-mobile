@@ -35,10 +35,12 @@ import { serverTimestamp } from "@react-native-firebase/firestore";
 import { extractProvinceName } from "../utils/extractProvinceName";
 import { useUserStore } from "../stores/userStore";
 import { UserService } from "../services/userService";
+import { useTranslation } from "../i18n";
 
 export const HomeScreen = ({
   navigation,
 }: HomeScreenProps): React.JSX.Element => {
+  const { t } = useTranslation();
   const { hasPermission, requestPermission } = useCameraPermission();
 
   const photoOutput = usePhotoOutput();
@@ -137,11 +139,11 @@ export const HomeScreen = ({
 
   const handleSettingsPress = (): void => {
     showAlert({
-      title: "Cài đặt SnapStep",
-      message: "Bạn có muốn mở Cài đặt hay Đăng xuất?",
+      title: t.home.settingsTitle,
+      message: t.home.settingsMsg,
       type: "info",
-      confirmText: "Đăng xuất",
-      cancelText: "Đóng",
+      confirmText: t.home.logoutBtn,
+      cancelText: t.home.closeBtn,
       onConfirm: logout,
     });
   };
@@ -410,10 +412,10 @@ export const HomeScreen = ({
             onToggleGhostMode={() => {
               setIsGhostModeOn(!isGhostModeOn);
               showAlert({
-                title: "Ghost Mode",
+                title: t.home.ghostModeTitle,
                 message: !isGhostModeOn
-                  ? "Chế độ Ẩn danh (Ghost Mode) đã BẬT"
-                  : "Chế độ Ẩn danh (Ghost Mode) đã TẮT",
+                  ? t.home.ghostModeOn
+                  : t.home.ghostModeOff,
                 type: !isGhostModeOn ? "success" : "info",
               });
             }}

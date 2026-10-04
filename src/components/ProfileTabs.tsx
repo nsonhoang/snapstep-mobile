@@ -11,6 +11,7 @@ import { SavedTripCard, SavedTripInfo } from './SavedTripCard';
 import { PostService, PostWithId } from '../services/postService';
 import { TripService, TripWithId } from '../services/tripService';
 import { useAuthStore } from '../stores/authStore';
+import { useTranslation } from '../i18n';
 
 interface ProfileTabsProps {
   userId?: string;
@@ -23,6 +24,7 @@ export const ProfileTabs = ({
   onSnapsCountChange,
   onTripsCountChange,
 }: ProfileTabsProps): React.JSX.Element => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'snaps' | 'routes'>('snaps');
   const [snaps, setSnaps] = useState<PostWithId[]>([]);
   const [trips, setTrips] = useState<TripWithId[]>([]);
@@ -88,14 +90,14 @@ export const ProfileTabs = ({
       <View style={styles.tabsHeader}>
         <Pressable style={styles.tab} onPress={() => setActiveTab('snaps')}>
           <Text style={[styles.tabText, activeTab === 'snaps' && styles.activeTabText]}>
-            My Snaps {snaps.length > 0 ? `(${snaps.length})` : ''}
+            {t.profile.mySnaps} {snaps.length > 0 ? `(${snaps.length})` : ''}
           </Text>
           {activeTab === 'snaps' && <View style={styles.activeIndicator} />}
         </Pressable>
         
         <Pressable style={styles.tab} onPress={() => setActiveTab('routes')}>
           <Text style={[styles.tabText, activeTab === 'routes' && styles.activeTabText]}>
-            Saved Routes {trips.length > 0 ? `(${trips.length})` : ''}
+            {t.profile.savedRoutes} {trips.length > 0 ? `(${trips.length})` : ''}
           </Text>
           {activeTab === 'routes' && <View style={styles.activeIndicator} />}
         </Pressable>

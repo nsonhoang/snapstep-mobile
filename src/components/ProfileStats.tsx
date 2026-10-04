@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { Colors } from '../constants/Colors';
+import { useTranslation } from '../i18n';
 
 interface ProfileStatsProps {
   footprintsCount?: number;
@@ -21,11 +22,13 @@ export const ProfileStats = ({
   snapsCount = 0,
   buddiesCount = 0,
 }: ProfileStatsProps): React.JSX.Element => {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.statsContainer}>
       <View style={styles.statBox}>
         <Text style={styles.statValue}>{formatStatNumber(footprintsCount)}</Text>
-        <Text style={styles.statLabel}>FOOTPRINTS</Text>
+        <Text style={styles.statLabel}>{t.profile.footprints}</Text>
       </View>
       
       {/* Đường phân cách */}
@@ -33,7 +36,7 @@ export const ProfileStats = ({
       
       <View style={styles.statBox}>
         <Text style={styles.statValue}>{formatStatNumber(snapsCount)}</Text>
-        <Text style={styles.statLabel}>SNAPS</Text>
+        <Text style={styles.statLabel}>{t.profile.snaps}</Text>
       </View>
       
       {/* Đường phân cách */}
@@ -41,7 +44,7 @@ export const ProfileStats = ({
       
       <View style={styles.statBox}>
         <Text style={styles.statValue}>{formatStatNumber(buddiesCount)}</Text>
-        <Text style={styles.statLabel}>BUDDIES</Text>
+        <Text style={styles.statLabel}>{t.profile.buddies}</Text>
       </View>
     </View>
   );

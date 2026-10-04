@@ -23,6 +23,7 @@ import { LoginScreenProps } from '../navigation/types';
 import { Colors } from '../constants/Colors';
 import { useAlert } from '../components/AlertProvider';
 import { useAuthStore } from '../stores/authStore';
+import { useTranslation } from '../i18n';
 
 const CompassIcon = (): React.JSX.Element => (
   <View style={styles.compassOuter}>
@@ -36,10 +37,11 @@ const CompassIcon = (): React.JSX.Element => (
 );
 
 export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element => {
+  const { t } = useTranslation();
   const { showAlert } = useAlert();
   const [isPhoneMode, setIsPhoneMode] = useState<boolean>(false);
   const [inputValue, setInputValue] = useState<string>('');
-  const {user} = useAuthStore();
+  const { user } = useAuthStore();
 
   const fadeValue = useSharedValue(0);
 
@@ -56,40 +58,37 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
     };
   });
 
-  
-
   const handleContinue = (): void => {
     if (!inputValue.trim()) {
       showAlert({
-        title: 'Authentication',
-        message: isPhoneMode ? 'Please enter your phone number!' : 'Please enter your email address!',
+        title: t.auth.authAlertTitle,
+        message: isPhoneMode ? t.auth.enterPhoneAlert : t.auth.enterEmailAlert,
         type: 'error',
       });
       return;
     }
-     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if(!emailRegex.test(inputValue)) {
-        showAlert({
-          title: 'Login',
-          message: 'Please enter a valid email address!',
-          type: 'error',
-        });
-        return;
-      }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(inputValue)) {
+      showAlert({
+        title: t.auth.loginAlertTitle,
+        message: t.auth.validEmailAlert,
+        type: 'error',
+      });
+      return;
+    }
 
-    
     // Navigate to separate PasswordScreen passing user input details
     navigation.navigate('Password', { identifier: inputValue, isPhone: isPhoneMode });
   };
 
   const handleGoogleSignIn = async (): Promise<void> => {
-    console.log(user)
+    console.log(user);
     showAlert({
-                    title: 'Google Sign-In',
-                    message: 'Google Sign-In is simulated!',
-                    type: 'info',
-                  })
-                }
+      title: t.auth.googleSignIn,
+      message: t.auth.googleSimulatedAlert,
+      type: 'info',
+    });
+  };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -109,14 +108,14 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
             >
               <View style={styles.headerContainer}>
                 <CompassIcon />
-                <Text style={styles.title}>SnapStep</Text>
-                <Text style={styles.subtitle}>Your next journey begins here.</Text>
+                <Text style={styles.title}>{t.auth.loginTitle}</Text>
+                <Text style={styles.subtitle}>{t.auth.loginSubtitle}</Text>
               </View>
 
               <View style={styles.formContainer}>
                 <TextInput
                   style={styles.textInput}
-                  placeholder={isPhoneMode ? "Phone number" : "Email address"}
+                  placeholder={isPhoneMode ? t.auth.phonePlaceholder : t.auth.emailPlaceholder}
                   placeholderTextColor={Colors.textMuted}
                   value={inputValue}
                   onChangeText={setInputValue}
@@ -138,12 +137,12 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
                   {isPhoneMode ? (
                     <>
                       <Feather name="mail" size={16} color={Colors.primary} style={styles.linkIcon} />
-                      <Text style={styles.toggleLinkText}>Use Email instead</Text> 
+                      <Text style={styles.toggleLinkText}>{t.auth.useEmail}</Text> 
                     </>
                   ) : (
                     <>
                       <Feather name="smartphone" size={16} color={Colors.primary} style={styles.linkIcon} />
-                      <Text style={styles.toggleLinkText}>Use Phone Number instead</Text>
+                      <Text style={styles.toggleLinkText}>{t.auth.usePhone}</Text>
                     </>
                   )}
                 </Pressable>
@@ -156,7 +155,7 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
                   ]}
                 >
                   <View style={styles.buttonContent}>
-                    <Text style={styles.primaryButtonText}>Continue</Text>
+                    <Text style={styles.primaryButtonText}>{t.auth.continue}</Text>
                     <Feather 
                       name="arrow-right" 
                       size={18} 
@@ -168,7 +167,7 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
 
                 <View style={styles.dividerContainer}>
                   <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>OR</Text>
+                  <Text style={styles.dividerText}>{t.auth.or}</Text>
                   <View style={styles.dividerLine} />
                 </View>
 
@@ -180,23 +179,23 @@ export const LoginScreen = ({ navigation }: LoginScreenProps): React.JSX.Element
                   onPress={handleGoogleSignIn}
                 >
                   <FontAwesome name="google" size={18} color={Colors.white} style={styles.googleIcon} />
-                  <Text style={styles.googleButtonText}>Sign in with Google</Text>
+                  <Text style={styles.googleButtonText}>{t.auth.googleSignIn}</Text>
                 </Pressable>
 
                 <View style={styles.signUpContainer}>
-                  <Text style={styles.signUpText}>Don't have an account?</Text>
+                  <Text style={styles.signUpText}>{t.auth.noAccount}</Text>
                   <Pressable 
                     style={({ pressed }) => pressed && { opacity: 0.7 }}
                     onPress={() => navigation.navigate('Register')}
                   >
-                    <Text style={styles.signUpLinkText}>Sign up</Text>
+                    <Text style={styles.signUpLinkText}>{t.auth.signUp}</Text>
                   </Pressable>
                 </View>
               </View>
 
               <View style={styles.footerContainer}>
                 <Text style={styles.footerText}>
-                  Route: SnapStep Login (Travel Background)
+                  SnapStep
                 </Text>
               </View>
             </KeyboardAvoidingView>

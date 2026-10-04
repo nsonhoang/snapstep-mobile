@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
+import { useTranslation } from '../i18n';
 
 interface SearchBarProps {
   value: string;
@@ -9,13 +10,16 @@ interface SearchBarProps {
   placeholder?: string;
 }
 
-export const SearchBar = ({ value, onChangeText, placeholder = 'Search...' }: SearchBarProps): React.JSX.Element => {
+export const SearchBar = ({ value, onChangeText, placeholder }: SearchBarProps): React.JSX.Element => {
+  const { t } = useTranslation();
+  const effectivePlaceholder = placeholder || t.common.searchPlaceholder;
+
   return (
     <View style={styles.searchBox}>
       <Ionicons name="search" size={20} color={Colors.textMuted} />
       <TextInput
         style={styles.searchInput}
-        placeholder={placeholder}
+        placeholder={effectivePlaceholder}
         placeholderTextColor={Colors.textMuted}
         value={value}
         onChangeText={onChangeText}

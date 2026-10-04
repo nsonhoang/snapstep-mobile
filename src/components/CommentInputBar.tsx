@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View, TextInput, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
+import { useTranslation } from '../i18n';
 
 interface CommentInputBarProps {
   value: string;
@@ -16,6 +17,7 @@ export const CommentInputBar = ({
   onSubmit,
   visible = true,
 }: CommentInputBarProps): React.JSX.Element | null => {
+  const { t } = useTranslation();
   if (!visible) return null;
 
   return (
@@ -23,7 +25,7 @@ export const CommentInputBar = ({
       <View style={styles.inputFloatingPill}>
         <TextInput
           style={styles.textInput}
-          placeholder="Share your feelings..."
+          placeholder={t.post.shareFeelingsPlaceholder}
           placeholderTextColor={Colors.textMuted}
           value={value}
           onChangeText={onChangeText}

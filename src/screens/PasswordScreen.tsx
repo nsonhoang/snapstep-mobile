@@ -24,6 +24,7 @@ import { PasswordScreenProps } from "../navigation/types";
 import { Colors } from "../constants/Colors";
 import { useAlert } from "../components/AlertProvider";
 import { useAuthStore } from "../stores/authStore";
+import { useTranslation } from "../i18n";
 
 const CompassIcon = (): React.JSX.Element => (
   <View style={styles.compassOuter}>
@@ -40,6 +41,7 @@ export const PasswordScreen = ({
   route,
   navigation,
 }: PasswordScreenProps): React.JSX.Element => {
+  const { t } = useTranslation();
   const { identifier } = route.params;
   const { login } = useAuthStore();
   const { showAlert } = useAlert();
@@ -64,8 +66,8 @@ export const PasswordScreen = ({
   const handleLogin = async (): Promise<void> => {
     if (!passwordValue.trim()) {
       showAlert({
-        title: "Authentication",
-        message: "Please enter your password!",
+        title: t.auth.authAlertTitle,
+        message: t.auth.enterPassAlert,
         type: "error",
       });
       return;
@@ -112,16 +114,16 @@ export const PasswordScreen = ({
 
               <View style={styles.headerContainer}>
                 <CompassIcon />
-                <Text style={styles.title}>Welcome back</Text>
+                <Text style={styles.title}>{t.auth.welcomeBack}</Text>
                 <Text style={styles.subtitle}>
-                  Enter password for {identifier}
+                  {t.auth.enterPasswordFor} {identifier}
                 </Text>
               </View>
 
               <View style={styles.formContainer}>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Password"
+                  placeholder={t.auth.passwordPlaceholder}
                   placeholderTextColor={Colors.textMuted}
                   value={passwordValue}
                   onChangeText={setPasswordValue}
@@ -134,8 +136,8 @@ export const PasswordScreen = ({
                 <Pressable
                   onPress={() =>
                     showAlert({
-                      title: "Reset Password",
-                      message: "Reset password flow is simulated!",
+                      title: t.auth.resetPassTitle,
+                      message: t.auth.resetPassSimulatedAlert,
                       type: "info",
                     })
                   }
@@ -145,7 +147,7 @@ export const PasswordScreen = ({
                   ]}
                 >
                   <Text style={styles.forgotPasswordText}>
-                    Forgot Password?
+                    {t.auth.forgotPassword}
                   </Text>
                 </Pressable>
 
@@ -159,7 +161,7 @@ export const PasswordScreen = ({
                 >
                   <View style={styles.buttonContent}>
                     <Text style={styles.primaryButtonText}>
-                      {isLoading ? "Signing in..." : "Log In"}
+                      {isLoading ? t.auth.signingIn : t.auth.logIn}
                     </Text>
                   </View>
                 </Pressable>
@@ -167,7 +169,7 @@ export const PasswordScreen = ({
 
               <View style={styles.footerContainer}>
                 <Text style={styles.footerText}>
-                  Route: SnapStep Login - Password
+                  SnapStep
                 </Text>
               </View>
             </KeyboardAvoidingView>

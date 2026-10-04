@@ -10,12 +10,11 @@ import { Timestamp } from '@react-native-firebase/firestore';
 import { NotificationItem, NotificationService, NotificationType } from '../services/notificationService';
 import { useAuthStore } from '../stores/authStore';
 import { FlashList } from '@shopify/flash-list';
-
-
-
+import { useTranslation } from '../i18n';
 
 export const NotificationsScreen = ({ navigation }: Props): React.JSX.Element => {
-   const user = useAuthStore((state) => state.user);
+  const { t } = useTranslation();
+  const user = useAuthStore((state) => state.user);
   const [isLoading, setIsLoading] = useState(true);
    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
@@ -117,7 +116,7 @@ const renderNotificationIcon = (type: NotificationType): React.JSX.Element => {
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={28} color={Colors.white} />
         </Pressable>
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={styles.headerTitle}>{t.notifications.headerTitle}</Text>
         <View style={styles.spacer} />
       </View>
 
@@ -129,7 +128,7 @@ const renderNotificationIcon = (type: NotificationType): React.JSX.Element => {
         </View>
       ) : notifications.length ===0 ?( <View style={styles.emptyContainer}>
           <Ionicons name="notifications-off-outline" size={64} color={Colors.textMuted} />
-          <Text style={styles.emptyText}>Chưa có thông báo nào</Text>
+          <Text style={styles.emptyText}>{t.notifications.emptyText}</Text>
         </View>): (
            <FlashList
           data={notifications}

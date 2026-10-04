@@ -9,6 +9,7 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { useAlert } from "../components/AlertProvider";
 import { usePostStore } from "../stores/postStore";
+import { useTranslation } from "../i18n";
 
 export const MAP_DARK_STYLE = [
   {
@@ -78,6 +79,7 @@ export const MAP_DARK_STYLE = [
 export const MapScreen = ({
   navigation,
 }: MapScreenProps): React.JSX.Element => {
+  const { t } = useTranslation();
   const [location, setLocation] = useState<Location.LocationObject | null>(
     null,
   );
@@ -125,8 +127,8 @@ export const MapScreen = ({
     if (status !== "granted") {
       console.log("Permission to access location was denied");
       showAlert({
-        title: "Permission to access location was denied",
-        message: "Please enable location access to use this feature",
+        title: t.map.locDeniedTitle,
+        message: t.map.locDeniedMsg,
         type: "error",
       });
       return;
@@ -135,8 +137,8 @@ export const MapScreen = ({
     if (!currentLocation) {
       console.log("Location not found");
       showAlert({
-        title: "Location not found",
-        message: "Please enable location access to use this feature",
+        title: t.map.locNotFoundTitle,
+        message: t.map.locNotFoundMsg,
         type: "error",
       });
       return;

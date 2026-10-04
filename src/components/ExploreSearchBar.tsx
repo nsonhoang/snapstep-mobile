@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View, TextInput, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
+import { useTranslation } from '../i18n';
 
 interface ExploreSearchBarProps {
   searchQuery: string;
@@ -12,11 +13,13 @@ export const ExploreSearchBar = ({
   searchQuery,
   onChangeSearch,
 }: ExploreSearchBarProps): React.JSX.Element => {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.container}>
       <TextInput
         style={styles.input}
-        placeholder="Search locations (e.g., 'Da Lat', 'Ha Giang')"
+        placeholder={t.explore.searchPlaceholder}
         placeholderTextColor={Colors.textMuted}
         value={searchQuery}
         onChangeText={onChangeSearch}

@@ -1,0 +1,181 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background smooth sky-blue gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6ec3fd" />
+      <stop offset="100%" stop-color="#4a9ff5" />
+    </linearGradient>
+
+    <!-- Camera horizontal stripe gradient (cyan to lime green) -->
+    <linearGradient id="stripeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00a8ea" />
+      <stop offset="42%" stop-color="#24c6d8" />
+      <stop offset="58%" stop-color="#55cb6e" />
+      <stop offset="100%" stop-color="#7fc834" />
+    </linearGradient>
+
+    <!-- Ocean globe radial gradient -->
+    <radialGradient id="oceanGrad" cx="36%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#4aa4ec" />
+      <stop offset="52%" stop-color="#2472c6" />
+      <stop offset="100%" stop-color="#104180" />
+    </radialGradient>
+
+    <!-- Clip path to lock world map strictly inside the globe circle at exact center (cx=512, cy=512) -->
+    <clipPath id="globeClip">
+      <circle cx="512" cy="512" r="120" />
+    </clipPath>
+
+    <!-- Outer drop shadow for camera body -->
+    <filter id="cameraShadow" x="-12%" y="-12%" width="124%" height="124%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#093d6b" flood-opacity="0.22" />
+    </filter>
+  </defs>
+
+  <!-- Squircle Canvas: 1024x1024, radius 228 (iOS/Android App Icon) -->
+  <rect width="1024" height="1024" rx="228" ry="228" fill="url(#bgGrad)" />
+
+  <!-- Subtle inner border highlight -->
+  <rect x="2.5" y="2.5" width="1019" height="1019" rx="226" ry="226" fill="none" stroke="#ffffff" stroke-width="4" stroke-opacity="0.3" />
+
+  <g filter="url(#cameraShadow)">
+
+    <!-- Top Camera Shutter Button (left) -->
+    <rect x="274" y="278" width="76" height="34" rx="14" fill="#ffffff" />
+
+    <!-- Camera Body Base (White) -->
+    <path d="
+      M 406,308 
+      L 434,250 
+      Q 442,234 460,234 
+      L 564,234 
+      Q 582,234 590,250 
+      L 618,308 
+      L 746,308 
+      Q 806,308 806,368 
+      L 806,656 
+      Q 806,716 746,716 
+      L 278,716 
+      Q 218,716 218,656 
+      L 218,368 
+      Q 218,308 278,308 
+      Z" 
+      fill="#ffffff" />
+
+    <!-- Top Right Sensor / Flash circle on Camera Body -->
+    <circle cx="742" cy="378" r="22" fill="#5ba7e5" />
+    <circle cx="742" cy="378" r="14" fill="#3b86c4" />
+    <circle cx="747" cy="373" r="4.5" fill="#ffffff" opacity="0.85" />
+
+    <!-- Cyan-to-Lime-Green Gradient Stripe across camera body -->
+    <rect x="218" y="414" width="588" height="196" fill="url(#stripeGrad)" />
+
+    <!-- Location Pin Shape encircling center (512, 512) -->
+    <path d="
+      M 512,788 
+      C 472,740 320,594 320,512 
+      A 192,192 0 1,1 704,512 
+      C 704,594 552,740 512,788 
+      Z" 
+      fill="#ffffff" />
+
+    <!-- Inner dark camera lens bezel rings centered at (512, 512) -->
+    <circle cx="512" cy="512" r="146" fill="#1b3652" />
+    <circle cx="512" cy="512" r="134" fill="#10253b" />
+    <circle cx="512" cy="512" r="126" fill="#0b1b2d" />
+
+    <!-- THE GLOBE -->
+    <g clip-path="url(#globeClip)">
+      <!-- Deep Blue Ocean Background -->
+      <circle cx="512" cy="512" r="120" fill="url(#oceanGrad)" />
+
+      <!-- World Map Continents (Vibrant lime green) -->
+      <g fill="#7ad048">
+        <!-- North America -->
+        <path d="
+          M 440,428 
+          Q 456,416 470,432 
+          Q 488,442 480,460 
+          Q 468,478 452,488 
+          Q 436,494 422,478 
+          Q 412,460 420,442 
+          Z" />
+        
+        <!-- Central America & Caribbean isthmus -->
+        <path d="
+          M 444,484 
+          Q 452,496 462,514 
+          Q 456,520 448,510 
+          Z" />
+
+        <!-- South America -->
+        <path d="
+          M 454,516 
+          Q 484,524 492,548 
+          Q 496,578 478,610 
+          Q 460,628 450,622 
+          Q 442,596 446,564 
+          Q 446,536 454,516 
+          Z" />
+
+        <!-- Greenland -->
+        <path d="
+          M 478,406 
+          Q 494,402 504,414 
+          Q 498,426 482,424 
+          Z" />
+
+        <!-- Europe & North Africa / Eurasia -->
+        <path d="
+          M 518,420 
+          Q 542,410 562,424 
+          Q 578,446 564,464 
+          Q 542,468 530,452 
+          Q 516,438 518,420 
+          Z" />
+
+        <!-- Africa -->
+        <path d="
+          M 524,464 
+          Q 558,464 578,490 
+          Q 586,522 576,558 
+          Q 560,596 544,600 
+          Q 532,580 528,542 
+          Q 514,504 524,464 
+          Z" />
+
+        <!-- Asia / East Coast -->
+        <path d="
+          M 572,424 
+          Q 606,420 622,446 
+          Q 628,474 612,492 
+          Q 596,494 584,474 
+          Q 570,450 572,424 
+          Z" />
+      </g>
+
+      <!-- Atmospheric 3D Lighting & Specular Highlight -->
+      <path d="
+        M 412,442 
+        A 120,120 0 0,1 558,398 
+        Q 484,430 438,490 
+        Q 418,466 412,442 
+        Z" 
+        fill="#ffffff" 
+        opacity="0.35" />
+
+      <!-- Subtle inner glowing edge for globe atmosphere -->
+      <circle cx="512" cy="512" r="118" fill="none" stroke="#68c0fa" stroke-width="4" opacity="0.45" />
+    </g>
+
+    <!-- Glass Reflection Arc on top-left of the location pin hole -->
+    <path d="
+      M 436,442 
+      A 108,108 0 0,1 532,410 
+      A 120,120 0 0,0 436,442 
+      Z" 
+      fill="#ffffff" 
+      opacity="0.65" />
+
+  </g>
+</svg>
