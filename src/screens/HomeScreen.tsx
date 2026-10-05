@@ -36,6 +36,8 @@ import { extractProvinceName } from "../utils/extractProvinceName";
 import { useUserStore } from "../stores/userStore";
 import { UserService } from "../services/userService";
 import { useTranslation } from "../i18n";
+import { useUploadQueueStore } from "../stores/queueUploadStore";
+import { UploadQueueService } from "../services/uploadQueueService";
 
 export const HomeScreen = ({
   navigation,
@@ -220,107 +222,123 @@ export const HomeScreen = ({
         return;
       }
 
+      // if (user && capturedPhotoUri) {
+      //   const rawPath = capturedPhotoUri.replace("file://", "");
+      //   const compressedUri = await ImageUtils.compressImage(rawPath);
+      //   console.log("Đã nén ảnh trước khi Up:", compressedUri);
+
+      //   // 1. Tải ảnh lên Firebase Storage
+      //   uploadedImageUrl = await ImageService.uploadImage(
+      //     compressedUri,
+      //     user.uid,
+      //   );
+      //   console.log("URL của ảnh trên Storage:", uploadedImageUrl);
+
+      //   if (!uploadedImageUrl) {
+      //     throw new Error(
+      //       "Không thể tải ảnh lên máy chủ (Upload ảnh thất bại).",
+      //     );
+      //   }
+
+      //   // Tọa độ bài viết: Chỉ lưu khi người dùng bật Chia sẻ lên bản đồ (shareToMap === true)
+      //   const position: Location | null = shareToMap
+      //     ? postLocation ||
+      //       (location
+      //         ? {
+      //             address: location.address || "Vị trí không xác định",
+      //             longitude: location.longitude,
+      //             latitude: location.latitude,
+      //           }
+      //         : null)
+      //     : null;
+
+      //   const post: Post = {
+      //     authorId: user.uid,
+      //     imageUrl: uploadedImageUrl,
+      //     caption: captionText,
+      //     tripId: selectedTripId,
+      //     location: position,
+      //     shareToMap: shareToMap,
+      //     createdAt: serverTimestamp(),
+      //     updateAt: serverTimestamp(),
+      //     like: 0,
+      //     love: 0,
+      //     hate: 0,
+      //     haha: 0,
+      //   };
+
+      //   // 2. Tạo bài viết trong Firestore
+      //   const newPost = await PostService.createPost(post);
+
+      //   // 3. Xử lý desbloquer tỉnh/thành phố
+      //   if (position?.address) {
+      //     const provinceName = extractProvinceName(position.address);
+      //     if (provinceName) {
+      //       //lấy thông tin user trên bộ nhớ đệm
+      //       const cachedUser = useUserStore.getState().users[user.uid];
+      //       const isNewProvince = Boolean(
+      //         cachedUser?.conqueredProvinces?.[provinceName],
+      //       );
+
+      //       //nếu có
+      //       if (!isNewProvince) {
+      //         await UserService.updateConqueredProvinces(
+      //           user.uid,
+      //           provinceName,
+      //           newPost,
+      //         );
+
+      //         // cập nhật state
+      //         useUserStore.setState((state) => ({
+      //           users: {
+      //             ...state.users,
+      //             [user.uid]: {
+      //               ...state.users[user.uid],
+      //               conqueredProvinces: {
+      //                 ...state.users[user.uid]?.conqueredProvinces,
+      //                 [provinceName]: {
+      //                   unlockedAt: new Date() as any,
+      //                   firstPhotoId: newPost,
+      //                 },
+      //               },
+      //               stats: {
+      //                 ...state.users[user.uid]?.stats,
+      //                 conqueredProvincesCount:
+      //                   (state.users[user.uid]?.stats
+      //                     ?.conqueredProvincesCount || 0) + 1,
+      //               },
+      //             },
+      //           },
+      //         }));
+      //       }
+      //     }
+      //   }
+
+      //   // Đóng modal xem trước và xóa ảnh tạm
+      //   setIsPreviewVisible(false);
+      //   setCapturedPhotoUri(undefined);
+      //   showCustomToast("Đăng bài thành công!");
+      // }
+
       if (user && capturedPhotoUri) {
-        const rawPath = capturedPhotoUri.replace("file://", "");
-        const compressedUri = await ImageUtils.compressImage(rawPath);
-        console.log("Đã nén ảnh trước khi Up:", compressedUri);
-
-        // 1. Tải ảnh lên Firebase Storage
-        uploadedImageUrl = await ImageService.uploadImage(
-          compressedUri,
-          user.uid,
-        );
-        console.log("URL của ảnh trên Storage:", uploadedImageUrl);
-
-        if (!uploadedImageUrl) {
-          throw new Error(
-            "Không thể tải ảnh lên máy chủ (Upload ảnh thất bại).",
-          );
-        }
-
-        // Tọa độ bài viết: Chỉ lưu khi người dùng bật Chia sẻ lên bản đồ (shareToMap === true)
-        const position: Location | null = shareToMap
-          ? postLocation ||
-            (location
-              ? {
-                  address: location.address || "Vị trí không xác định",
-                  longitude: location.longitude,
-                  latitude: location.latitude,
-                }
-              : null)
-          : null;
-
-        const post: Post = {
-          authorId: user.uid,
-          imageUrl: uploadedImageUrl,
+        useUploadQueueStore.getState().addTask({
+          userId: user.uid,
+          photoUri: capturedPhotoUri,
           caption: captionText,
           tripId: selectedTripId,
-          location: position,
+          location: postLocation,
           shareToMap: shareToMap,
-          createdAt: serverTimestamp(),
-          updateAt: serverTimestamp(),
-          like: 0,
-          love: 0,
-          hate: 0,
-          haha: 0,
-        };
-
-        // 2. Tạo bài viết trong Firestore
-        const newPost = await PostService.createPost(post);
-
-        // 3. Xử lý desbloquer tỉnh/thành phố
-        if (position?.address) {
-          const provinceName = extractProvinceName(position.address);
-          if (provinceName) {
-            //lấy thông tin user trên bộ nhớ đệm
-            const cachedUser = useUserStore.getState().users[user.uid];
-            const isNewProvince = Boolean(
-              cachedUser?.conqueredProvinces?.[provinceName],
-            );
-
-            //nếu có
-            if (!isNewProvince) {
-              await UserService.updateConqueredProvinces(
-                user.uid,
-                provinceName,
-                newPost,
-              );
-
-              // cập nhật state
-              useUserStore.setState((state) => ({
-                users: {
-                  ...state.users,
-                  [user.uid]: {
-                    ...state.users[user.uid],
-                    conqueredProvinces: {
-                      ...state.users[user.uid]?.conqueredProvinces,
-                      [provinceName]: {
-                        unlockedAt: new Date() as any,
-                        firstPhotoId: newPost,
-                      },
-                    },
-                    stats: {
-                      ...state.users[user.uid]?.stats,
-                      conqueredProvincesCount:
-                        (state.users[user.uid]?.stats
-                          ?.conqueredProvincesCount || 0) + 1,
-                    },
-                  },
-                },
-              }));
-            }
-          }
-        }
-
-        // Đóng modal xem trước và xóa ảnh tạm
-        setIsPreviewVisible(false);
-        setCapturedPhotoUri(undefined);
-        showCustomToast("Đăng bài thành công!");
+        });
       }
+
+      UploadQueueService.processQueue();
+
+      setIsPreviewVisible(false);
+      setCapturedPhotoUri(undefined);
+      showCustomToast("Đăng bài thành công!");
     } catch (error) {
       console.error("Lỗi khi đăng bài viết:", error);
 
-      // 👉 CƠ CHẾ ROLLBACK: Nếu ảnh đã upload lên Storage nhưng tạo bài viết thất bại -> Xóa ngay ảnh trên Storage!
       if (uploadedImageUrl) {
         console.log(
           "Đang kích hoạt Rollback xóa ảnh rác trên Storage:",

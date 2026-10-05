@@ -43,7 +43,7 @@ export const PasswordScreen = ({
 }: PasswordScreenProps): React.JSX.Element => {
   const { t } = useTranslation();
   const { identifier } = route.params;
-  const { login } = useAuthStore();
+  const { login, resetPassword } = useAuthStore();
   const { showAlert } = useAlert();
   const [passwordValue, setPasswordValue] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -78,6 +78,43 @@ export const PasswordScreen = ({
       await login(identifier, passwordValue);
     } catch (error) {
       console.log(error);
+      showAlert({
+        title: t.auth.authAlertTitle,
+        message: t.auth.incorrectEmailOrPassword,
+        type: "error",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Xử lý gửi email khôi phục mật khẩu và chuyển tới màn hình VerifyEmail
+  const handleForgotPassword = async (): Promise<void> => {
+    const email = identifier.trim();
+    if (!email) {
+      showAlert({
+        title: t.auth.authAlertTitle,
+        message: t.auth.enterEmailAlert,
+        type: "error",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await resetPassword(email);
+      // Chuyển hướng sang màn hình VerifyEmail với chế độ khôi phục mật khẩu
+      navigation.navigate("VerifyEmail", {
+        mode: "reset_password",
+        email,
+      });
+    } catch (error: unknown) {
+      console.error("Lỗi khi gửi email khôi phục mật khẩu:", error);
+      showAlert({
+        title: t.common.error,
+        message: t.auth.resendLinkError,
+        type: "error",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +129,6 @@ export const PasswordScreen = ({
           resizeMode="cover"
         />
         <View style={[StyleSheet.absoluteFill, styles.overlay]} />
-
         <Animated.View style={[styles.contentContainer, animatedStyle]}>
           <SafeAreaView style={styles.safeArea}>
             <KeyboardAvoidingView
@@ -134,16 +170,12 @@ export const PasswordScreen = ({
                 />
 
                 <Pressable
-                  onPress={() =>
-                    showAlert({
-                      title: t.auth.resetPassTitle,
-                      message: t.auth.resetPassSimulatedAlert,
-                      type: "info",
-                    })
-                  }
+                  onPress={handleForgotPassword}
+                  disabled={isLoading}
                   style={({ pressed }) => [
                     styles.forgotPasswordLink,
                     pressed && { opacity: 0.7 },
+                    isLoading && { opacity: 0.5 },
                   ]}
                 >
                   <Text style={styles.forgotPasswordText}>
@@ -168,9 +200,7 @@ export const PasswordScreen = ({
               </View>
 
               <View style={styles.footerContainer}>
-                <Text style={styles.footerText}>
-                  SnapStep
-                </Text>
+                <Text style={styles.footerText}>SnapStep</Text>
               </View>
             </KeyboardAvoidingView>
           </SafeAreaView>

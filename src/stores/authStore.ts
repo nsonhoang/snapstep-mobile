@@ -3,6 +3,7 @@ import {
   getAuth,
   onAuthStateChanged,
   sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   User,
 } from "@react-native-firebase/auth";
@@ -17,13 +18,14 @@ interface AuthContextType {
   register: (email: string, password: string) => Promise<void>;
   reloadUser: () => Promise<void>;
   logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthContextType>((set, get) => ({
   user: null,
   initializing: true,
   login: async (email: string, pass: string) => {
-    signInWithEmailAndPassword(getAuth(), email, pass)
+    await signInWithEmailAndPassword(getAuth(), email, pass)
       .then((userCredential) => {
         const user = userCredential.user;
         console.log("User logged in!", user);
@@ -32,15 +34,15 @@ export const useAuthStore = create<AuthContextType>((set, get) => ({
         const errorCode = error.code;
         const errorMessage = error.message;
         console.error("Error logging in:", errorCode, errorMessage);
+        throw error;
       });
   },
   register: async (email: string, password: string) => {
-    createUserWithEmailAndPassword(getAuth(), email, password)
+    await createUserWithEmailAndPassword(getAuth(), email, password)
       .then(async () => {
         console.log("User account created & signed in!");
 
         const newUser = getAuth().currentUser;
-        console.log("đăng ký " + newUser?.email);
 
         if (newUser && !newUser.emailVerified) {
           await sendEmailVerification(newUser);
@@ -54,7 +56,7 @@ export const useAuthStore = create<AuthContextType>((set, get) => ({
         if (error.code === "auth/invalid-email") {
           console.log("That email address is invalid!");
         }
-        throw error
+        throw error;
       });
   },
   logout: async () => {
@@ -63,7 +65,7 @@ export const useAuthStore = create<AuthContextType>((set, get) => ({
       try {
         const allKeys = await AsyncStorage.getAllKeys();
         const userFailedMsgKeys = allKeys.filter((k) =>
-          k.startsWith(`@failed_msg_${currentUid}`)
+          k.startsWith(`@failed_msg_${currentUid}`),
         );
         if (userFailedMsgKeys.length > 0) {
           await AsyncStorage.multiRemove(userFailedMsgKeys);
@@ -101,6 +103,15 @@ export const useAuthStore = create<AuthContextType>((set, get) => ({
       // Tạo một object copy mới để ép React cập nhật giao diện
 
       console.log("User reloaded! lan 2" + get().user?.emailVerified);
+    }
+  },
+
+  resetPassword: async (email: string) => {
+    try {
+      await sendPasswordResetEmail(getAuth(), email);
+    } catch (error) {
+      console.error(error);
+      throw error;
     }
   },
 }));

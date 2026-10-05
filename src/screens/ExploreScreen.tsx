@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { StyleSheet, View, Text, Pressable, ActivityIndicator } from "react-native";
+import {
+  StyleSheet,
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { Feather } from "@expo/vector-icons";
@@ -26,6 +32,7 @@ import { useFriendshipStore } from "../stores/friendshipStore";
 import { User } from "../services/userService";
 import { Trip } from "../services/tripService";
 import { useTranslation } from "../i18n";
+import { UploadQueueService } from "../services/uploadQueueService";
 
 export const ExploreScreen = ({
   navigation,
@@ -53,14 +60,14 @@ export const ExploreScreen = ({
 
       if (!userQuery.exists()) {
         // Trích xuất tên từ email (ví dụ: hoangson@gmail.com -> hoangson)
-        const emailName = user?.email ? user.email.split('@')[0] : 'Explorer';
+        const emailName = user?.email ? user.email.split("@")[0] : "Explorer";
         const defaultName = user?.displayName || emailName;
 
         const newUser: User = {
           firstName: defaultName,
           lastName: defaultName,
           username: emailName,
-          email: user?.email || '',
+          email: user?.email || "",
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           ghostMode: false,
@@ -99,6 +106,7 @@ export const ExploreScreen = ({
       }
     };
     createUser();
+    UploadQueueService.processQueue();
   }, [user?.uid]);
 
   // Lắng nghe danh sách bạn bè thời gian thực
@@ -130,7 +138,7 @@ export const ExploreScreen = ({
     if (route?.params?.filter) {
       setSelectedChipId(route.params.filter);
     }
-  }, [route?.params?.filter]);  
+  }, [route?.params?.filter]);
 
   // Tạo các chip lọc động từ danh sách bạn bè thật (ngăn chặn hoàn toàn trùng lặp key)
   const filterChips: FilterChipItem[] = useMemo(() => {
@@ -240,15 +248,18 @@ export const ExploreScreen = ({
     <View style={styles.emptyContainer}>
       <Feather name="compass" size={56} color={Colors.outline} />
       <Text style={styles.emptyTitle}>{t.explore.emptyTitle}</Text>
-      <Text style={styles.emptySubtitle}>
-        {t.explore.emptySubtitle}
-      </Text>
+      <Text style={styles.emptySubtitle}>{t.explore.emptySubtitle}</Text>
       <Pressable
-        style={({ pressed }) => [styles.findBuddiesBtn, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.findBuddiesBtn,
+          pressed && styles.pressed,
+        ]}
         onPress={() => navigation.navigate("SearchBuddies")}
       >
         <Feather name="user-plus" size={16} color={Colors.black} />
-        <Text style={styles.findBuddiesBtnText}>{t.explore.findBuddiesBtn}</Text>
+        <Text style={styles.findBuddiesBtnText}>
+          {t.explore.findBuddiesBtn}
+        </Text>
       </Pressable>
     </View>
   );

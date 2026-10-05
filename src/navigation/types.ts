@@ -18,7 +18,7 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
-  VerifyEmail: undefined;
+  VerifyEmail: { mode?: 'verify_registration' | 'reset_password'; email?: string } | undefined;
   Password: { identifier: string; isPhone: boolean };
   MainTabs: NavigatorScreenParams<MainTabParamList>;
   Home: undefined;

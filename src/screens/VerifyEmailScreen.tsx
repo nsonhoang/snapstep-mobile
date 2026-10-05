@@ -14,54 +14,84 @@ import { useAuthStore } from '../stores/authStore';
 import { Colors } from '../constants/Colors';
 import { VerifyEmailScreenProps } from '../navigation/types';
 import { sendEmailVerification, getAuth } from '@react-native-firebase/auth';
+import { useTranslation } from '../i18n';
+import { useAlert } from '../components/AlertProvider';
 
-export const VerifyEmailScreen = ({ navigation }: VerifyEmailScreenProps): React.JSX.Element => {
-  const { user, reloadUser, logout } = useAuthStore();
+export const VerifyEmailScreen = ({
+  navigation,
+  route,
+}: VerifyEmailScreenProps): React.JSX.Element => {
+  const { t } = useTranslation();
+  const { showAlert } = useAlert();
+  const { user, reloadUser, logout, resetPassword } = useAuthStore();
+
   const [isReloading, setIsReloading] = useState<boolean>(false);
   const [isResending, setIsResending] = useState<boolean>(false);
- 
 
+  // Phân biệt chế độ: 'verify_registration' (xác thực khi đăng ký) hoặc 'reset_password' (khôi phục mật khẩu)
+  const mode = route.params?.mode || 'verify_registration';
+  const isResetPasswordMode = mode === 'reset_password';
 
-    useEffect(() => {
+  // Lấy email mục tiêu từ route params hoặc từ thông tin user hiện tại
+  const targetEmail = route.params?.email || user?.email || '';
+
+  // Chạy polling kiểm tra trạng thái xác thực chỉ khi đang ở chế độ đăng ký tài khoản
+  useEffect(() => {
+    if (isResetPasswordMode || !user) return;
+
     const intervalId = setInterval(() => {
-      // Gọi hàm reloadUser chạy ngầm
-      reloadUser()
-      .then( async () => {
-              
-      })
-      .catch(() => {});
+      reloadUser().catch(() => {});
     }, 5000);
+
     return () => clearInterval(intervalId);
-  }, []);
+  }, [isResetPasswordMode, user, reloadUser]);
 
+  // Xử lý khi nhấn nút chính
+  const handlePrimaryAction = async (): Promise<void> => {
+    if (isResetPasswordMode) {
+      // Chế độ khôi phục: quay lại màn hình Đăng nhập
+      navigation.navigate('Login');
+      return;
+    }
 
-
-
-  // Hàm xử lý khi người dùng bấm Đã xác thực
-  const handleVerifiedCheck = async () => {
+    // Chế độ xác thực đăng ký: tải lại dữ liệu user để kiểm tra emailVerified
     setIsReloading(true);
     try {
       await reloadUser();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Lỗi khi tải lại dữ liệu user:', error);
     } finally {
       setIsReloading(false);
     }
   };
 
-  // Hàm xử lý khi người dùng bấm Gửi lại email
-  const handleResendEmail = async () => {
-    const currentUser = getAuth().currentUser;
-    if (!currentUser) return;
-    
+  // Xử lý khi người dùng bấm nút Gửi lại email
+  const handleResendEmail = async (): Promise<void> => {
     setIsResending(true);
     try {
-      await sendEmailVerification(currentUser);
-      // Hiển thị thông báo thành công (có thể thay bằng AlertProvider nếu muốn)
-      alert('Đã gửi lại đường link xác thực. Vui lòng kiểm tra hòm thư!');
-    } catch (error) {
+      if (isResetPasswordMode) {
+        // Gửi lại email đặt lại mật khẩu
+        if (!targetEmail) return;
+        await resetPassword(targetEmail);
+      } else {
+        // Gửi lại email xác thực tài khoản
+        const currentUser = getAuth().currentUser;
+        if (!currentUser) return;
+        await sendEmailVerification(currentUser);
+      }
+
+      showAlert({
+        title: t.common.success,
+        message: t.auth.resendLinkSuccess,
+        type: 'success',
+      });
+    } catch (error: unknown) {
       console.error('Lỗi khi gửi lại email:', error);
-      alert('Không thể gửi lại email lúc này. Vui lòng thử lại sau.');
+      showAlert({
+        title: t.common.error,
+        message: t.auth.resendLinkError,
+        type: 'error',
+      });
     } finally {
       setIsResending(false);
     }
@@ -79,75 +109,99 @@ export const VerifyEmailScreen = ({ navigation }: VerifyEmailScreenProps): React
       <View style={[StyleSheet.absoluteFill, styles.overlay]} />
 
       <SafeAreaView style={styles.safeArea}>
-        <Animated.View 
-          entering={FadeInDown.duration(800).springify()} 
+        <Animated.View
+          entering={FadeInDown.duration(800).springify()}
           style={styles.contentContainer}
         >
-          {/* Biểu tượng Hộp thư */}
+          {/* Biểu tượng Hộp thư / Chìa khóa */}
           <View style={styles.iconContainer}>
             <View style={styles.iconInner}>
-              <Feather name="mail" size={48} color={Colors.primary} />
+              <Feather
+                name={isResetPasswordMode ? 'key' : 'mail'}
+                size={48}
+                color={Colors.primary}
+              />
             </View>
           </View>
 
-          {/* Tiêu đề & Lời nhắn */}
-          <Text style={styles.title}>Xác thực Email</Text>
-          <Text style={styles.subtitle}>
-            Chúng tôi đã gửi một đường link xác nhận đến email:
+          {/* Tiêu đề & Lời nhắn đa ngôn ngữ */}
+          <Text style={styles.title}>
+            {isResetPasswordMode
+              ? t.auth.resetPasswordTitle
+              : t.auth.verifyEmailTitle}
           </Text>
-          <Text style={styles.emailText}>{user?.email}</Text>
+          <Text style={styles.subtitle}>
+            {isResetPasswordMode
+              ? t.auth.resetPasswordSubtitle
+              : t.auth.verifyEmailSubtitle}
+          </Text>
+          {targetEmail ? (
+            <Text style={styles.emailText}>{targetEmail}</Text>
+          ) : null}
           <Text style={styles.instruction}>
-            Vui lòng kiểm tra hòm thư (hoặc mục Spam), bấm vào đường link để xác thực, sau đó quay lại đây.
+            {isResetPasswordMode
+              ? t.auth.resetPasswordInstruction
+              : t.auth.verifyEmailInstruction}
           </Text>
 
           <View style={styles.buttonGroup}>
-            {/* Nút Tôi đã xác thực */}
+            {/* Nút hành động chính */}
             <Pressable
-              onPress={handleVerifiedCheck}
+              onPress={handlePrimaryAction}
               disabled={isReloading}
               style={({ pressed }) => [
                 styles.primaryButton,
                 pressed && { opacity: 0.8 },
-                isReloading && { opacity: 0.5 }
+                isReloading && { opacity: 0.5 },
               ]}
             >
               {isReloading ? (
                 <ActivityIndicator color={Colors.black} />
               ) : (
-                <Text style={styles.primaryButtonText}>Tôi đã xác thực xong</Text>
+                <Text style={styles.primaryButtonText}>
+                  {isResetPasswordMode
+                    ? t.auth.backToLoginBtn
+                    : t.auth.verifiedDoneBtn}
+                </Text>
               )}
             </Pressable>
 
-            {/* Nút Gửi lại */}
+            {/* Nút Gửi lại Email */}
             <Pressable
               onPress={handleResendEmail}
               disabled={isResending}
               style={({ pressed }) => [
                 styles.secondaryButton,
                 pressed && { opacity: 0.8 },
-                isResending && { opacity: 0.5 }
+                isResending && { opacity: 0.5 },
               ]}
             >
               {isResending ? (
                 <ActivityIndicator color={Colors.white} />
               ) : (
-                <Text style={styles.secondaryButtonText}>Gửi lại Email</Text>
+                <Text style={styles.secondaryButtonText}>
+                  {t.auth.resendEmail}
+                </Text>
               )}
             </Pressable>
           </View>
         </Animated.View>
 
-        {/* Nút Đăng xuất đặt ở góc dưới */}
-        <Pressable 
-          onPress={logout}
-          style={({ pressed }) => [
-            styles.logoutButton,
-            pressed && { opacity: 0.7 }
-          ]}
-        >
-          <Feather name="log-out" size={20} color={Colors.textMuted} />
-          <Text style={styles.logoutText}>Sử dụng tài khoản khác</Text>
-        </Pressable>
+        {/* Nút Đăng xuất ở dưới cùng (chỉ hiển thị ở chế độ xác thực đăng ký khi đang có session) */}
+        {!isResetPasswordMode && user ? (
+          <Pressable
+            onPress={logout}
+            style={({ pressed }) => [
+              styles.logoutButton,
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Feather name="log-out" size={20} color={Colors.textMuted} />
+            <Text style={styles.logoutText}>{t.auth.logoutOtherAccount}</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.bottomPlaceholder} />
+        )}
       </SafeAreaView>
     </View>
   );
@@ -195,6 +249,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: Colors.white,
     marginBottom: 12,
+    textAlign: 'center',
   },
   subtitle: {
     fontFamily: 'SF-Pro-Rounded-Regular',
@@ -261,5 +316,8 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 15,
     fontFamily: 'SF-Pro-Rounded-Medium',
+  },
+  bottomPlaceholder: {
+    height: 24,
   },
 });

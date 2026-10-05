@@ -106,8 +106,6 @@ export const PhotoPreviewModal = ({
         setTimeout(() => {
           setNoticeMessage(null);
         }, 3000);
-
-        return;
       }
 
       await refetchLocation();
@@ -253,9 +251,7 @@ export const PhotoPreviewModal = ({
                       size={18}
                       color={Colors.primary}
                     />
-                    <Text style={styles.optionTitle}>
-                      {t.post.shareToMap}
-                    </Text>
+                    <Text style={styles.optionTitle}>{t.post.shareToMap}</Text>
                   </View>
                   {shareToMap ? (
                     isLocationLoading ? (

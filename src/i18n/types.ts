@@ -1,5 +1,5 @@
 // Định nghĩa các ngôn ngữ được ứng dụng hỗ trợ
-export type SupportedLanguage = 'vi' | 'en';
+export type SupportedLanguage = "vi" | "en";
 
 // Interface chuẩn cho toàn bộ từ điển ngôn ngữ của ứng dụng SnapStep
 export interface TranslationSchema {
@@ -47,8 +47,19 @@ export interface TranslationSchema {
     passMinLengthAlert: string;
     passMismatchAlert: string;
     emailVerifiedTitle: string;
+    incorrectEmailOrPassword: string;
+    verifyEmailTitle: string;
+    verifyEmailSubtitle: string;
+    verifyEmailInstruction: string;
+    verifiedDoneBtn: string;
+    resetPasswordTitle: string;
+    resetPasswordSubtitle: string;
+    resetPasswordInstruction: string;
+    backToLoginBtn: string;
     resendEmail: string;
     logoutOtherAccount: string;
+    resendLinkSuccess: string;
+    resendLinkError: string;
   };
   explore: {
     searchPlaceholder: string;
