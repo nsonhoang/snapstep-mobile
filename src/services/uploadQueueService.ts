@@ -7,6 +7,7 @@ import { serverTimestamp } from "@react-native-firebase/firestore";
 import { extractProvinceName } from "../utils/extractProvinceName";
 import { ImageUtils } from "../utils/imageUtils";
 import { useAuthStore } from "../stores/authStore";
+import { UploadNotificationService } from "./uploadNotificationService";
 
 export const UploadQueueService = {
   // ĐÂY CHÍNH LÀ WORKER CHẠY NGẦM
@@ -44,14 +45,20 @@ export const UploadQueueService = {
       if (!user) {
         throw new Error("Người dùng chưa đăng nhập.");
       }
+
+      // Khởi tạo kênh thông báo và hiển thị tiến trình bắt đầu
+      await UploadNotificationService.initChannel();
+      await UploadNotificationService.showProgress(15, "Đang tối ưu hóa ảnh...");
+
       console.log("Worker đang nén ảnh ngầm bằng C++ Nitro Image...");
       store.updateTaskProgress(nextTask.id, 15);
 
       const compressedUri = await ImageUtils.compressImage(nextTask.photoUri);
 
       store.updateTaskProgress(nextTask.id, 35);
+      await UploadNotificationService.showProgress(35, "Đang tải ảnh lên máy chủ...");
 
-      const uploadedUrl = await ImageService.uploadImage(
+      uploadedUrl = await ImageService.uploadImage(
         compressedUri,
         nextTask.userId,
       );
@@ -62,6 +69,7 @@ export const UploadQueueService = {
 
       // Tải ảnh xong ➔ Nhảy tiến trình lên 70%
       store.updateTaskProgress(nextTask.id, 70);
+      await UploadNotificationService.showProgress(70, "Đang lưu bài viết...");
 
       // BƯỚC B: Ghi bài viết vào Firestore
       const postData: Post = {
@@ -79,7 +87,8 @@ export const UploadQueueService = {
         haha: 0,
       };
 
-      const newPost = await PostService.createPost(postData);
+      const newPostId = await PostService.createPost(postData);
+      newPost = newPostId;
 
       // BƯỚC C: Mở khóa tỉnh/thành nếu bài viết có vị trí
       if (nextTask.location?.address) {
@@ -92,7 +101,7 @@ export const UploadQueueService = {
             await UserService.updateConqueredProvinces(
               nextTask.userId,
               provinceName,
-              newPost,
+              newPostId,
             );
             useUserStore.setState((state) => ({
               users: {
@@ -103,7 +112,7 @@ export const UploadQueueService = {
                     ...state.users[user.uid]?.conqueredProvinces,
                     [provinceName]: {
                       unlockedAt: serverTimestamp(),
-                      firstPhotoId: newPost,
+                      firstPhotoId: newPostId,
                     },
                   },
                   stats: {
@@ -122,6 +131,7 @@ export const UploadQueueService = {
       // BƯỚC D: Hoàn tất 100%
       store.updateTaskProgress(nextTask.id, 100);
       store.updateTaskStatus(nextTask.id, "success");
+      await UploadNotificationService.showSuccess();
       console.log("Task hoàn tất thành công:", nextTask.id);
 
       // Tự động dọn dẹp xóa task sau 2 giây
@@ -143,6 +153,7 @@ export const UploadQueueService = {
         "failed",
         err.message || "Tải lên thất bại",
       );
+      await UploadNotificationService.showError(err.message);
 
       console.error("Lỗi khi đăng bài viết:", error);
     } finally {
